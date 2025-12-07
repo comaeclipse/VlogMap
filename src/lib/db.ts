@@ -10,6 +10,7 @@ export type MarkerRow = {
   description: string | null
   latitude: number
   longitude: number
+  city: string | null
   video_published_at: string | null
   created_at: string
 }
@@ -64,12 +65,16 @@ async function ensureSchema() {
             description TEXT,
             latitude DOUBLE PRECISION NOT NULL,
             longitude DOUBLE PRECISION NOT NULL,
+            city TEXT,
             video_published_at TIMESTAMPTZ,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           )
         `)
         await getPool().query(
           `ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS video_published_at TIMESTAMPTZ`,
+        )
+        await getPool().query(
+          `ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS city TEXT`,
         )
       } catch (err: unknown) {
         // Ignore duplicate type error (23505 on pg_type) - table already exists
@@ -105,6 +110,7 @@ export function mapMarkerRow(row: MarkerRow) {
     description: row.description,
     latitude: row.latitude,
     longitude: row.longitude,
+    city: row.city,
     videoPublishedAt: row.video_published_at,
     createdAt: row.created_at,
   }

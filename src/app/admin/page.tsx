@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [form, setForm] = useState<MarkerInput>(emptyMarker)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [metaLoading, setMetaLoading] = useState(false)
+  const [geoLoading, setGeoLoading] = useState(false)
   const creatorOptions = useMemo(
     () =>
       Array.from(new Set((data ?? []).map((m) => m.creator).filter(Boolean))).sort((a, b) =>
@@ -123,6 +124,22 @@ export default function AdminPage() {
     setForm(emptyMarker)
   }
 
+  const startDuplicate = (marker: Marker) => {
+    setEditingId(null)
+    setForm({
+      title: marker.title,
+      creator: marker.creator,
+      channelUrl: marker.channelUrl ?? "",
+      videoUrl: marker.videoUrl ?? "",
+      description: marker.description ?? "",
+      latitude: marker.latitude,
+      longitude: marker.longitude,
+      city: marker.city ?? "",
+      videoPublishedAt: marker.videoPublishedAt ?? "",
+    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   const fetchMetadata = async () => {
     if (!form.videoUrl) {
       toast.error("Add a video URL first")
@@ -155,6 +172,36 @@ export default function AdminPage() {
       toast.success("Metadata applied")
     } finally {
       setMetaLoading(false)
+    }
+  }
+
+  const fetchCity = async () => {
+    if (Number.isNaN(form.latitude) || Number.isNaN(form.longitude)) {
+      toast.error("Enter coordinates first")
+      return
+    }
+    setGeoLoading(true)
+    try {
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ latitude: form.latitude, longitude: form.longitude }),
+      })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Could not lookup city")
+        return
+      }
+      const payload = (await res.json()) as { city?: string | null }
+      if (payload.city) {
+        setForm((prev) => ({ ...prev, city: payload.city || prev.city }))
+        toast.success(`City: ${payload.city}`)
+      } else {
+        toast.error("City not found")
+      }
+    } finally {
+      setGeoLoading(false)
     }
   }
 
@@ -306,6 +353,28 @@ export default function AdminPage() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="city">City (auto-filled)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="city"
+                  placeholder="City / locality"
+                  value={form.city ?? ""}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  onClick={fetchCity}
+                  disabled={geoLoading}
+                  title="Lookup city by coordinates"
+                >
+                  <RefreshCw className={`h-4 w-4 ${geoLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
@@ -357,6 +426,7 @@ export default function AdminPage() {
                   <p className="font-medium text-white">{marker.title}</p>
                   <p className="text-sm text-slate-400">
                     {marker.creator} &middot; {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+                    {marker.city ? ` · ${marker.city}` : ""}
                   </p>
                   {marker.description && (
                     <p className="mt-1 truncate text-sm text-slate-500">{marker.description}</p>
@@ -388,6 +458,9 @@ export default function AdminPage() {
                   <Button size="sm" variant="secondary" onClick={() => startEdit(marker)}>
                     <Pencil className="mr-1 h-3 w-3" />
                     Edit
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => startDuplicate(marker)}>
+                    + Location
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(marker.id)}>
                     <Trash2 className="mr-1 h-3 w-3" />

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     apiUrl.searchParams.set("id", videoId)
     apiUrl.searchParams.set("key", apiKey)
 
-    const res = await fetch(apiUrl.toString())
+    const res = await fetch(apiUrl.toString(), { next: { revalidate: 3600 } })
     if (!res.ok) {
       return NextResponse.json({ error: "Failed to fetch metadata" }, { status: 400 })
     }

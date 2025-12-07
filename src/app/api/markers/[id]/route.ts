@@ -40,9 +40,10 @@ export async function PUT(
             description = $5,
             latitude = $6,
             longitude = $7,
-            video_published_at = $8
-        WHERE id = $9
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, video_published_at, created_at
+            city = $8,
+            video_published_at = $9
+        WHERE id = $10
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, created_at
       `,
       [
         payload.title,
@@ -52,6 +53,7 @@ export async function PUT(
         payload.description ?? null,
         payload.latitude,
         payload.longitude,
+        payload.city ?? null,
         payload.videoPublishedAt ? new Date(payload.videoPublishedAt).toISOString() : null,
         id,
       ],

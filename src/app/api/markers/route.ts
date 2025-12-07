@@ -8,7 +8,7 @@ import { markerSchema } from "@/lib/markers"
 export async function GET() {
   try {
     const { rows } = await query<MarkerRow>(`
-      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, video_published_at, created_at
+      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, created_at
       FROM explorer_markers
       ORDER BY created_at DESC
     `)
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
     const { rows } = await query<MarkerRow>(
       `
         INSERT INTO explorer_markers
-          (title, creator, channel_url, video_url, description, latitude, longitude, video_published_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, video_published_at, created_at
+          (title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, created_at
       `,
       [
         payload.title,
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         payload.description ?? null,
         payload.latitude,
         payload.longitude,
+        payload.city ?? null,
         payload.videoPublishedAt ? new Date(payload.videoPublishedAt).toISOString() : null,
       ],
     )
