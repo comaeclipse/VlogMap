@@ -163,6 +163,22 @@ export default function AdminPage() {
     toast.success(`Updated ${updates.length} location(s)`)
   }
 
+  const handleAddLocationToVideo = (video: VideoGroup) => {
+    setEditingId(null)
+    setForm({
+      title: video.title,
+      creator: video.creator,
+      channelUrl: video.channelUrl ?? "",
+      videoUrl: video.videoUrl,
+      videoPublishedAt: video.videoPublishedAt ?? "",
+      description: "",
+      latitude: 0,
+      longitude: 0,
+      city: "",
+    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   const startEdit = (marker: Marker) => {
     setEditingId(marker.id)
     setForm({
@@ -558,6 +574,7 @@ export default function AdminPage() {
                   setBatchEditVideo(v)
                   setBatchDialogOpen(true)
                 }}
+                onAddLocation={handleAddLocationToVideo}
                 onDeleteLocation={handleDelete}
               />
             ))}

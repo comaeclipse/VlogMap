@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type { VideoGroup } from "@/types/markers"
@@ -9,10 +9,11 @@ import type { VideoGroup } from "@/types/markers"
 type VideoCardProps = {
   video: VideoGroup
   onEditVideo: (video: VideoGroup) => void
+  onAddLocation: (video: VideoGroup) => void
   onDeleteLocation: (markerId: number) => void
 }
 
-export function VideoCard({ video, onEditVideo, onDeleteLocation }: VideoCardProps) {
+export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation }: VideoCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -34,6 +35,17 @@ export function VideoCard({ video, onEditVideo, onDeleteLocation }: VideoCardPro
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddLocation(video)
+              }}
+            >
+              <Plus className="mr-1 h-3 w-3" />
+              Add Location
+            </Button>
             <Button
               size="sm"
               variant="secondary"
