@@ -2,11 +2,18 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import useSWR from "swr"
 import { AlertCircle, Globe2, MapPin, ShieldHalf } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { Marker } from "@/types/markers"
 
 const MapCanvas = dynamic(
@@ -35,6 +42,19 @@ export default function Home() {
     refreshInterval: 15000,
   })
   const [selected, setSelected] = useState<Marker | null>(null)
+  const [selectedCreator, setSelectedCreator] = useState<string>("all")
+
+  const creators = useMemo(() => {
+    if (!data) return []
+    const uniqueCreators = Array.from(new Set(data.map((m) => m.creator).filter(Boolean)))
+    return uniqueCreators.sort((a, b) => a.localeCompare(b))
+  }, [data])
+
+  const filteredMarkers = useMemo(() => {
+    if (!data) return []
+    if (selectedCreator === "all") return data
+    return data.filter((marker) => marker.creator === selectedCreator)
+  }, [data, selectedCreator])
 
   return (
     <div className="flex h-full flex-col bg-slate-950 text-slate-50">
@@ -52,9 +72,22 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-300">
+            <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+              <SelectTrigger className="w-[180px] h-9 text-xs">
+                <SelectValue placeholder="All Creators" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Creators</SelectItem>
+                {creators.map((creator) => (
+                  <SelectItem key={creator} value={creator}>
+                    {creator}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="flex items-center gap-1">
               <MapPin className="h-4 w-4 text-pink-300" />
-              {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
+              {isLoading ? "Loading..." : `${filteredMarkers.length} location${filteredMarkers.length !== 1 ? 's' : ''}`}
             </span>
             {error ? (
               <span className="flex items-center gap-1 text-amber-200">
@@ -74,7 +107,7 @@ export default function Home() {
       <main className="relative flex-1">
         <div className="absolute inset-0">
           <MapCanvas
-            markers={data || []}
+            markers={filteredMarkers}
             onSelect={setSelected}
             focusMarker={selected}
           />
