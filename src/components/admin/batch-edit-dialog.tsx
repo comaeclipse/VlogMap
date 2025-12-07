@@ -1,0 +1,126 @@
+"use client"
+
+import { useEffect, useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import type { VideoGroup, LocationEdit } from "@/types/markers"
+
+type BatchEditDialogProps = {
+  video: VideoGroup | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (updates: LocationEdit[]) => Promise<void>
+}
+
+export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEditDialogProps) {
+  const [edits, setEdits] = useState<LocationEdit[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (video) {
+      setEdits(video.locations.map(loc => ({
+        id: loc.id,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        description: loc.description || '',
+        city: loc.city || '',
+      })))
+    }
+  }, [video])
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await onSave(edits)
+      onOpenChange(false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const updateEdit = (index: number, field: keyof LocationEdit, value: string | number) => {
+    const updated = [...edits]
+    updated[index] = { ...updated[index], [field]: value }
+    setEdits(updated)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Batch Edit: {video?.title}</DialogTitle>
+          <DialogDescription>
+            Edit all {video?.locationCount} location(s) for this video
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {edits.map((edit, index) => (
+            <div key={edit.id} className="border rounded-lg p-4 bg-slate-900/40">
+              <p className="font-medium mb-3 text-sm text-slate-300">Location {index + 1}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor={`lat-${edit.id}`} className="text-xs">Latitude</Label>
+                  <Input
+                    id={`lat-${edit.id}`}
+                    type="number"
+                    step="0.0001"
+                    value={edit.latitude}
+                    onChange={(e) => updateEdit(index, 'latitude', Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`lng-${edit.id}`} className="text-xs">Longitude</Label>
+                  <Input
+                    id={`lng-${edit.id}`}
+                    type="number"
+                    step="0.0001"
+                    value={edit.longitude}
+                    onChange={(e) => updateEdit(index, 'longitude', Number(e.target.value))}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor={`city-${edit.id}`} className="text-xs">City</Label>
+                  <Input
+                    id={`city-${edit.id}`}
+                    value={edit.city || ''}
+                    onChange={(e) => updateEdit(index, 'city', e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor={`desc-${edit.id}`} className="text-xs">Description</Label>
+                  <Textarea
+                    id={`desc-${edit.id}`}
+                    value={edit.description || ''}
+                    onChange={(e) => updateEdit(index, 'description', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : `Save ${edits.length} Location(s)`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

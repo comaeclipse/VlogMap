@@ -11,7 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/sonner"
-import type { Marker, MarkerInput } from "@/types/markers"
+import { groupMarkersByVideo } from "@/lib/group-markers"
+import { VideoCard } from "@/components/admin/video-card"
+import { BatchEditDialog } from "@/components/admin/batch-edit-dialog"
+import type { Marker, MarkerInput, VideoGroup, LocationEdit } from "@/types/markers"
 
 const fetcher = (url: string) =>
   fetch(url, { credentials: "include" }).then(async (res) => {
@@ -54,6 +57,8 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [metaLoading, setMetaLoading] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
+  const [batchEditVideo, setBatchEditVideo] = useState<VideoGroup | null>(null)
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
     form.videoUrl ? ["/api/markers", form.videoUrl] : null,
@@ -65,6 +70,10 @@ export default function AdminPage() {
         a.localeCompare(b),
       ),
     [data],
+  )
+  const { grouped: videoGroups, uncategorized } = useMemo(
+    () => groupMarkersByVideo(data || []),
+    [data]
   )
 
   useEffect(() => {
@@ -79,6 +88,12 @@ export default function AdminPage() {
   }
 
   const handleSave = async () => {
+    // Validate video URL for new markers
+    if (!editingId && !form.videoUrl) {
+      toast.error('Video URL is required for new markers')
+      return
+    }
+
     const endpoint = editingId ? `/api/markers/${editingId}` : "/api/markers"
     const method = editingId ? "PUT" : "POST"
 
@@ -123,6 +138,29 @@ export default function AdminPage() {
       await mutateVideoMarkers()
     }
     toast.success("Marker deleted")
+  }
+
+  const handleBatchSave = async (updates: LocationEdit[]) => {
+    if (!batchEditVideo) return
+
+    const res = await fetch('/api/markers/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        videoUrl: batchEditVideo.videoUrl,
+        updates,
+      }),
+    })
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      toast.error(payload?.error || 'Could not save changes')
+      return
+    }
+
+    await mutate()
+    toast.success(`Updated ${updates.length} location(s)`)
   }
 
   const startEdit = (marker: Marker) => {
@@ -314,7 +352,9 @@ export default function AdminPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="videoUrl">Video URL</Label>
+              <Label htmlFor="videoUrl">
+                Video URL <span className="text-red-400">*</span>
+              </Label>
               <div className="flex gap-2">
                 <Input
                   id="videoUrl"
@@ -334,6 +374,9 @@ export default function AdminPage() {
                   <RefreshCw className={`h-4 w-4 ${metaLoading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
+              {!form.videoUrl && !editingId && (
+                <p className="text-xs text-red-400">Video URL is required for new markers</p>
+              )}
             </div>
             <div className="flex items-center justify-between sm:col-span-2">
               <p className="text-sm text-slate-400">
@@ -487,9 +530,9 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* Marker List */}
+        {/* Videos & Locations */}
         <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
-          <h2 className="mb-4 text-base font-semibold">All Markers</h2>
+          <h2 className="mb-4 text-base font-semibold">Videos & Locations</h2>
 
           {error && (
             <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
@@ -505,58 +548,75 @@ export default function AdminPage() {
             <p className="text-sm text-slate-400">No markers yet. Add one above.</p>
           )}
 
+          {/* Video Groups */}
           <div className="space-y-3">
-            {data?.map((marker) => (
-              <div
-                key={marker.id}
-                className="flex flex-col gap-3 rounded-lg border border-white/5 bg-slate-800/50 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-white">{marker.title}</p>
-                  <p className="text-sm text-slate-400">
-                    {marker.creator} &middot; {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
-                    {marker.city ? ` · ${marker.city}` : ""}
-                  </p>
-                  {marker.description && (
-                    <p className="mt-1 truncate text-sm text-slate-500">{marker.description}</p>
-                  )}
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    {marker.channelUrl && (
-                      <a
-                        href={marker.channelUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
-                      >
-                        Channel
-                      </a>
-                    )}
-                    {marker.videoUrl && (
-                      <a
-                        href={marker.videoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
-                      >
-                        Video
-                      </a>
-                    )}
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => startEdit(marker)}>
-                    <Pencil className="mr-1 h-3 w-3" />
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDelete(marker.id)}>
-                    <Trash2 className="mr-1 h-3 w-3" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
+            {videoGroups.map(video => (
+              <VideoCard
+                key={video.videoUrl}
+                video={video}
+                onEditVideo={(v) => {
+                  setBatchEditVideo(v)
+                  setBatchDialogOpen(true)
+                }}
+                onDeleteLocation={handleDelete}
+              />
             ))}
           </div>
+
+          {/* Uncategorized Section */}
+          {uncategorized.length > 0 && (
+            <div className="mt-6 border-t border-white/10 pt-6">
+              <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-sm text-amber-200">
+                  <strong>Action Required:</strong> These markers don't have a video URL.
+                  Edit each marker to add a video URL, or delete if no longer needed.
+                </p>
+              </div>
+
+              <h3 className="mb-3 text-sm font-semibold text-slate-400">
+                Uncategorized ({uncategorized.length})
+              </h3>
+
+              <div className="space-y-2">
+                {uncategorized.map((marker) => (
+                  <div
+                    key={marker.id}
+                    className="flex flex-col gap-3 rounded-lg border border-white/5 bg-slate-800/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-white">{marker.title}</p>
+                      <p className="text-sm text-slate-400">
+                        {marker.creator} &middot; {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+                        {marker.city ? ` · ${marker.city}` : ""}
+                      </p>
+                      {marker.description && (
+                        <p className="mt-1 truncate text-sm text-slate-500">{marker.description}</p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => startEdit(marker)}>
+                        <Pencil className="mr-1 h-3 w-3" />
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(marker.id)}>
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
+
+        {/* Batch Edit Dialog */}
+        <BatchEditDialog
+          video={batchEditVideo}
+          open={batchDialogOpen}
+          onOpenChange={setBatchDialogOpen}
+          onSave={handleBatchSave}
+        />
       </main>
     </div>
   )
