@@ -1,0 +1,313 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import useSWR from "swr"
+import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/components/ui/sonner"
+import type { Marker, MarkerInput } from "@/types/markers"
+
+const fetcher = (url: string) =>
+  fetch(url).then(async (res) => {
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(message || "Failed to load markers")
+    }
+    return res.json()
+  })
+
+const emptyMarker: MarkerInput = {
+  title: "",
+  creator: "",
+  channelUrl: "",
+  videoUrl: "",
+  description: "",
+  latitude: 0,
+  longitude: 0,
+}
+
+export default function AdminPage() {
+  const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
+  const [adminSecret, setAdminSecret] = useState(() => {
+    if (typeof window === "undefined") return ""
+    return window.localStorage.getItem("vlogmap-admin") || ""
+  })
+  const [form, setForm] = useState<MarkerInput>(emptyMarker)
+  const [editingId, setEditingId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (adminSecret) {
+      window.localStorage.setItem("vlogmap-admin", adminSecret)
+    }
+  }, [adminSecret])
+
+  const handleSave = async () => {
+    if (!adminSecret) {
+      toast.error("Enter the admin password first")
+      return
+    }
+
+    const endpoint = editingId ? `/api/markers/${editingId}` : "/api/markers"
+    const method = editingId ? "PUT" : "POST"
+
+    const res = await fetch(endpoint, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-secret": adminSecret,
+      },
+      body: JSON.stringify(form),
+    })
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      toast.error(payload?.error || "Could not save marker")
+      return
+    }
+
+    setForm(emptyMarker)
+    setEditingId(null)
+    await mutate()
+    toast.success(editingId ? "Marker updated" : "Marker created")
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!adminSecret) {
+      toast.error("Enter the admin password first")
+      return
+    }
+
+    if (!confirm("Delete this marker?")) return
+
+    const res = await fetch(`/api/markers/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-secret": adminSecret },
+    })
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      toast.error(payload?.error || "Could not delete marker")
+      return
+    }
+
+    await mutate()
+    toast.success("Marker deleted")
+  }
+
+  const startEdit = (marker: Marker) => {
+    setEditingId(marker.id)
+    setForm({
+      title: marker.title,
+      creator: marker.creator,
+      channelUrl: marker.channelUrl ?? "",
+      videoUrl: marker.videoUrl ?? "",
+      description: marker.description ?? "",
+      latitude: marker.latitude,
+      longitude: marker.longitude,
+    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setForm(emptyMarker)
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/90 backdrop-blur">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to map
+              </Button>
+            </Link>
+            <h1 className="text-lg font-semibold">Admin Portal</h1>
+          </div>
+          <span className="text-sm text-slate-400">
+            {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
+          </span>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
+        {/* Auth + Form */}
+        <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+          <h2 className="mb-4 text-base font-semibold">
+            {editingId ? "Edit Marker" : "Add New Marker"}
+          </h2>
+
+          <div className="mb-4 space-y-2">
+            <Label htmlFor="admin-secret">Admin Password</Label>
+            <Input
+              id="admin-secret"
+              type="password"
+              placeholder="••••••••"
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              className="max-w-xs"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="City skyline walk"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="creator">Creator</Label>
+              <Input
+                id="creator"
+                placeholder="Channel name"
+                value={form.creator}
+                onChange={(e) => setForm({ ...form, creator: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="channelUrl">Channel URL</Label>
+              <Input
+                id="channelUrl"
+                placeholder="https://youtube.com/@channel"
+                value={form.channelUrl ?? ""}
+                onChange={(e) => setForm({ ...form, channelUrl: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="videoUrl">Video URL</Label>
+              <Input
+                id="videoUrl"
+                placeholder="https://youtu.be/demo"
+                value={form.videoUrl ?? ""}
+                onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="latitude">Latitude</Label>
+              <Input
+                id="latitude"
+                type="number"
+                step="0.0001"
+                value={form.latitude}
+                onChange={(e) => setForm({ ...form, latitude: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="longitude">Longitude</Label>
+              <Input
+                id="longitude"
+                type="number"
+                step="0.0001"
+                value={form.longitude}
+                onChange={(e) => setForm({ ...form, longitude: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Night tour, hidden food stalls, aerials..."
+                value={form.description ?? ""}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <Button onClick={handleSave} className="gap-2">
+              <Plus className="h-4 w-4" />
+              {editingId ? "Update Marker" : "Add Marker"}
+            </Button>
+            {editingId && (
+              <Button variant="secondary" onClick={cancelEdit}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </section>
+
+        {/* Marker List */}
+        <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+          <h2 className="mb-4 text-base font-semibold">All Markers</h2>
+
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+              {error.message}
+            </div>
+          )}
+
+          {isLoading && !data && (
+            <p className="text-sm text-slate-400">Loading markers...</p>
+          )}
+
+          {data && data.length === 0 && (
+            <p className="text-sm text-slate-400">No markers yet. Add one above.</p>
+          )}
+
+          <div className="space-y-3">
+            {data?.map((marker) => (
+              <div
+                key={marker.id}
+                className="flex flex-col gap-3 rounded-lg border border-white/5 bg-slate-800/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-white">{marker.title}</p>
+                  <p className="text-sm text-slate-400">
+                    {marker.creator} &middot; {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+                  </p>
+                  {marker.description && (
+                    <p className="mt-1 truncate text-sm text-slate-500">{marker.description}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    {marker.channelUrl && (
+                      <a
+                        href={marker.channelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
+                      >
+                        Channel
+                      </a>
+                    )}
+                    {marker.videoUrl && (
+                      <a
+                        href={marker.videoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
+                      >
+                        Video
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => startEdit(marker)}>
+                    <Pencil className="mr-1 h-3 w-3" />
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDelete(marker.id)}>
+                    <Trash2 className="mr-1 h-3 w-3" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
