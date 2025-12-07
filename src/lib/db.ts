@@ -1,6 +1,7 @@
 import { Pool } from "pg"
+import type { QueryResultRow } from "pg"
 
-type MarkerRow = {
+export type MarkerRow = {
   id: number
   title: string
   creator: string
@@ -55,7 +56,10 @@ async function ensureSchema() {
 
 type QueryParam = string | number | boolean | null
 
-export async function query<T = unknown>(text: string, params?: QueryParam[]) {
+export async function query<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: QueryParam[],
+) {
   await ensureSchema()
   const result = await getPool().query<T>(text, params)
   return result

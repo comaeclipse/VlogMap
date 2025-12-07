@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo } from "react"
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet"
-import type { Icon } from "leaflet"
 import L from "leaflet"
 
 import type { Marker as MarkerType } from "@/types/markers"
@@ -29,7 +28,7 @@ function Recenter({ marker }: { marker?: MarkerType | null }) {
 }
 
 export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
-  const pinIcon = useMemo<Icon>(
+  const pinIcon = useMemo(
     () =>
       L.divIcon({
         className: "vlog-pin",

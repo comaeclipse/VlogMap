@@ -2,11 +2,12 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { requireAdmin } from "@/lib/auth"
 import { mapMarkerRow, query } from "@/lib/db"
+import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
 
 export async function GET() {
   try {
-    const { rows } = await query(`
+    const { rows } = await query<MarkerRow>(`
       SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, created_at
       FROM explorer_markers
       ORDER BY created_at DESC
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const payload = markerSchema.parse(body)
 
-    const { rows } = await query(
+    const { rows } = await query<MarkerRow>(
       `
         INSERT INTO explorer_markers
           (title, creator, channel_url, video_url, description, latitude, longitude)

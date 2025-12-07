@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { requireAdmin } from "@/lib/auth"
 import { mapMarkerRow, query } from "@/lib/db"
+import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
 
 function parseId(id: string) {
@@ -14,12 +15,13 @@ function parseId(id: string) {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const authResponse = requireAdmin(request)
   if (authResponse) return authResponse
 
-  const id = parseId(params.id)
+  const { id: rawId } = await context.params
+  const id = parseId(rawId)
   if (!id) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 })
   }
@@ -28,7 +30,7 @@ export async function PUT(
     const body = await request.json()
     const payload = markerSchema.parse(body)
 
-    const { rows } = await query(
+    const { rows } = await query<MarkerRow>(
       `
         UPDATE explorer_markers
         SET title = $1,
@@ -75,12 +77,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const authResponse = requireAdmin(request)
   if (authResponse) return authResponse
 
-  const id = parseId(params.id)
+  const { id: rawId } = await context.params
+  const id = parseId(rawId)
   if (!id) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 })
   }
