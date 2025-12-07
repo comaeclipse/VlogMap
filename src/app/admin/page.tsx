@@ -193,6 +193,28 @@ export default function AdminPage() {
                 onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
               />
             </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="coords">Paste Coordinates</Label>
+              <Input
+                id="coords"
+                placeholder="55.8828, 26.5463"
+                onChange={(e) => {
+                  const match = e.target.value.match(
+                    /(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)/
+                  )
+                  if (match) {
+                    setForm({
+                      ...form,
+                      latitude: parseFloat(match[1]),
+                      longitude: parseFloat(match[2]),
+                    })
+                  }
+                }}
+              />
+              <p className="text-xs text-slate-500">
+                Paste &quot;lat, lng&quot; to auto-fill below
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="latitude">Latitude</Label>
               <Input
