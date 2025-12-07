@@ -9,11 +9,12 @@ Sleek Next.js + shadcn UI map that highlights where YouTubers have filmed around
 - Postgres via `pg`, request validation via `zod`
 
 ### Setup
-1) Copy the env template and set secrets:
-```bash
-cp .env.example .env.local
+1) Create a `.env.local` (gitignored) and set secrets:
 ```
-Fill `DATABASE_URL` and pick an `ADMIN_SECRET`.
+DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=require
+# or POSTGRES_URL / POSTGRES_PRISMA_URL / POSTGRES_URL_NON_POOLING (Neon/Vercel)
+ADMIN_SECRET=<choose-a-strong-secret>
+```
 
 2) Install deps and run:
 ```bash

@@ -13,15 +13,31 @@ export type MarkerRow = {
   created_at: string
 }
 
+const connectionKeys = [
+  "DATABASE_URL",
+  "POSTGRES_URL",
+  "POSTGRES_PRISMA_URL",
+  "POSTGRES_URL_NON_POOLING",
+  "DATABASE_URL_UNPOOLED",
+  "POSTGRES_URL_NO_SSL",
+]
+
 let pool: Pool | null = null
 let schemaReady: Promise<void> | null = null
 
+function getConnectionString() {
+  for (const key of connectionKeys) {
+    const value = process.env[key]
+    if (value) return value
+  }
+  throw new Error(
+    "Database connection string is not configured. Set DATABASE_URL (or POSTGRES_URL) in your environment.",
+  )
+}
+
 function getPool() {
   if (!pool) {
-    const connectionString = process.env.DATABASE_URL
-    if (!connectionString) {
-      throw new Error("DATABASE_URL is not configured")
-    }
+    const connectionString = getConnectionString()
     pool = new Pool({
       connectionString,
       ssl:
