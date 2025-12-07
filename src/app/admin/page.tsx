@@ -30,6 +30,7 @@ const emptyMarker: MarkerInput = {
   description: "",
   latitude: 0,
   longitude: 0,
+  videoPublishedAt: "",
 }
 
 export default function AdminPage() {
@@ -112,6 +113,7 @@ export default function AdminPage() {
       description: marker.description ?? "",
       latitude: marker.latitude,
       longitude: marker.longitude,
+      videoPublishedAt: marker.videoPublishedAt ?? "",
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -139,11 +141,16 @@ export default function AdminPage() {
         toast.error(payload?.error || "Could not fetch metadata")
         return
       }
-      const payload = (await res.json()) as { title?: string; creator?: string }
+      const payload = (await res.json()) as {
+        title?: string
+        creator?: string
+        publishedAt?: string
+      }
       setForm((prev) => ({
         ...prev,
         title: prev.title || payload.title || prev.title,
         creator: prev.creator || payload.creator || prev.creator,
+        videoPublishedAt: payload.publishedAt || prev.videoPublishedAt,
       }))
       toast.success("Metadata applied")
     } finally {
@@ -241,11 +248,20 @@ export default function AdminPage() {
                   size="icon"
                   onClick={fetchMetadata}
                   disabled={metaLoading}
-                  title="Fetch title & creator"
+                  title="Fetch title, creator, published date"
                 >
                   <RefreshCw className={`h-4 w-4 ${metaLoading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="videoPublishedAt">Video published at</Label>
+              <Input
+                id="videoPublishedAt"
+                placeholder="2024-01-01T12:00:00Z"
+                value={form.videoPublishedAt ?? ""}
+                onChange={(e) => setForm({ ...form, videoPublishedAt: e.target.value })}
+              />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="coords">Paste Coordinates</Label>

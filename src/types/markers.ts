@@ -7,6 +7,7 @@ export type Marker = {
   description?: string | null
   latitude: number
   longitude: number
+  videoPublishedAt?: string | null
   createdAt?: string
 }
 
