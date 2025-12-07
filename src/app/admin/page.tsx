@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, LogOut, Pencil, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, LogOut, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +41,7 @@ export default function AdminPage() {
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const [form, setForm] = useState<MarkerInput>(emptyMarker)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [metaLoading, setMetaLoading] = useState(false)
   const creatorOptions = useMemo(
     () =>
       Array.from(new Set((data ?? []).map((m) => m.creator).filter(Boolean))).sort((a, b) =>
@@ -120,6 +121,36 @@ export default function AdminPage() {
     setForm(emptyMarker)
   }
 
+  const fetchMetadata = async () => {
+    if (!form.videoUrl) {
+      toast.error("Add a video URL first")
+      return
+    }
+    setMetaLoading(true)
+    try {
+      const res = await fetch("/api/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ url: form.videoUrl }),
+      })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Could not fetch metadata")
+        return
+      }
+      const payload = (await res.json()) as { title?: string; creator?: string }
+      setForm((prev) => ({
+        ...prev,
+        title: prev.title || payload.title || prev.title,
+        creator: prev.creator || payload.creator || prev.creator,
+      }))
+      toast.success("Metadata applied")
+    } finally {
+      setMetaLoading(false)
+    }
+  }
+
   if (authLoading || !authData?.authenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
@@ -196,12 +227,25 @@ export default function AdminPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="videoUrl">Video URL</Label>
-              <Input
-                id="videoUrl"
-                placeholder="https://youtu.be/demo"
-                value={form.videoUrl ?? ""}
-                onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="videoUrl"
+                  placeholder="https://youtu.be/demo"
+                  value={form.videoUrl ?? ""}
+                  onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  onClick={fetchMetadata}
+                  disabled={metaLoading}
+                  title="Fetch title & creator"
+                >
+                  <RefreshCw className={`h-4 w-4 ${metaLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="coords">Paste Coordinates</Label>
