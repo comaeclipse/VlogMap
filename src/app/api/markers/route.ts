@@ -5,13 +5,19 @@ import { mapMarkerRow, query } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const videoUrl = request.nextUrl.searchParams.get("videoUrl")
+
   try {
-    const { rows } = await query<MarkerRow>(`
+    const { rows } = await query<MarkerRow>(
+      `
       SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, created_at
       FROM explorer_markers
+      ${videoUrl ? "WHERE video_url = $1" : ""}
       ORDER BY created_at DESC
-    `)
+    `,
+      videoUrl ? [videoUrl] : undefined,
+    )
     const markers = rows.map(mapMarkerRow)
     return NextResponse.json(markers)
   } catch (error) {

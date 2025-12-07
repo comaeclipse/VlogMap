@@ -22,6 +22,17 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
+const fetcherWithVideo = ([url, videoUrl]: [string, string]) =>
+  fetch(`${url}?videoUrl=${encodeURIComponent(videoUrl)}`, {
+    credentials: "include",
+  }).then(async (res) => {
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(message || "Failed to load")
+    }
+    return res.json()
+  })
+
 const emptyMarker: MarkerInput = {
   title: "",
   creator: "",
@@ -39,11 +50,15 @@ export default function AdminPage() {
     "/api/auth/check",
     fetcher,
   )
-  const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const [form, setForm] = useState<MarkerInput>(emptyMarker)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [metaLoading, setMetaLoading] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
+  const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
+  const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
+    form.videoUrl ? ["/api/markers", form.videoUrl] : null,
+    fetcherWithVideo,
+  )
   const creatorOptions = useMemo(
     () =>
       Array.from(new Set((data ?? []).map((m) => m.creator).filter(Boolean))).sort((a, b) =>
@@ -83,6 +98,9 @@ export default function AdminPage() {
     setForm(emptyMarker)
     setEditingId(null)
     await mutate()
+    if (form.videoUrl) {
+      await mutateVideoMarkers()
+    }
     toast.success(editingId ? "Marker updated" : "Marker created")
   }
 
@@ -101,6 +119,9 @@ export default function AdminPage() {
     }
 
     await mutate()
+    if (form.videoUrl) {
+      await mutateVideoMarkers()
+    }
     toast.success("Marker deleted")
   }
 
@@ -114,6 +135,7 @@ export default function AdminPage() {
       description: marker.description ?? "",
       latitude: marker.latitude,
       longitude: marker.longitude,
+      city: marker.city ?? "",
       videoPublishedAt: marker.videoPublishedAt ?? "",
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -137,6 +159,18 @@ export default function AdminPage() {
       city: marker.city ?? "",
       videoPublishedAt: marker.videoPublishedAt ?? "",
     })
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const addLocationForVideo = () => {
+    setEditingId(null)
+    setForm((prev) => ({
+      ...prev,
+      latitude: 0,
+      longitude: 0,
+      city: "",
+      description: "",
+    }))
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -301,6 +335,16 @@ export default function AdminPage() {
                 </Button>
               </div>
             </div>
+            <div className="flex items-center justify-between sm:col-span-2">
+              <p className="text-sm text-slate-400">
+                {videoMarkers?.length
+                  ? `${videoMarkers.length} location${videoMarkers.length > 1 ? "s" : ""} for this video`
+                  : "No locations loaded for this video yet"}
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={addLocationForVideo}>
+                Add location for this video
+              </Button>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="videoPublishedAt">Video published at</Label>
               <Input
@@ -309,6 +353,51 @@ export default function AdminPage() {
                 value={form.videoPublishedAt ?? ""}
                 onChange={(e) => setForm({ ...form, videoPublishedAt: e.target.value })}
               />
+            </div>
+            <div className="sm:col-span-2 space-y-3 rounded-lg border border-white/10 bg-slate-900/60 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white">Locations for this video</p>
+                  <p className="text-xs text-slate-400">
+                    {form.videoUrl
+                      ? videoMarkers
+                        ? `${videoMarkers.length} location${videoMarkers.length === 1 ? "" : "s"}`
+                        : "Loading..."
+                      : "Enter a video URL to load locations"}
+                  </p>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={addLocationForVideo}>
+                  Add location
+                </Button>
+              </div>
+              {form.videoUrl && videoMarkers?.length ? (
+                <div className="space-y-2">
+                  {videoMarkers.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex flex-col gap-2 rounded-md border border-white/10 bg-slate-800/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-1 text-sm text-slate-200">
+                        <p className="font-medium">
+                          {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
+                          {m.city ? ` · ${m.city}` : ""}
+                        </p>
+                        {m.description ? (
+                          <p className="text-xs text-slate-400 line-clamp-2">{m.description}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => startEdit(m)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(m.id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="coords">Paste Coordinates</Label>
@@ -458,9 +547,6 @@ export default function AdminPage() {
                   <Button size="sm" variant="secondary" onClick={() => startEdit(marker)}>
                     <Pencil className="mr-1 h-3 w-3" />
                     Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => startDuplicate(marker)}>
-                    + Location
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(marker.id)}>
                     <Trash2 className="mr-1 h-3 w-3" />
