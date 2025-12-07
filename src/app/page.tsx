@@ -136,7 +136,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-50">
+    <div className="flex h-full flex-col bg-slate-950 text-slate-50">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-900/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex items-center gap-3">
@@ -315,8 +315,10 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="flex-1">
-        <MapCanvas markers={data || []} onSelect={setSelected} focusMarker={selected} />
+      <main className="relative flex-1">
+        <div className="absolute inset-0">
+          <MapCanvas markers={data || []} onSelect={setSelected} focusMarker={selected} />
+        </div>
       </main>
     </div>
   )

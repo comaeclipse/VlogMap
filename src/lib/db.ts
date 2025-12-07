@@ -52,19 +52,28 @@ function getPool() {
 async function ensureSchema() {
   if (!schemaReady) {
     schemaReady = (async () => {
-      await getPool().query(`
-        CREATE TABLE IF NOT EXISTS explorer_markers (
-          id SERIAL PRIMARY KEY,
-          title TEXT NOT NULL,
-          creator TEXT NOT NULL,
-          channel_url TEXT,
-          video_url TEXT,
-          description TEXT,
-          latitude DOUBLE PRECISION NOT NULL,
-          longitude DOUBLE PRECISION NOT NULL,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `)
+      try {
+        await getPool().query(`
+          CREATE TABLE IF NOT EXISTS explorer_markers (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            creator TEXT NOT NULL,
+            channel_url TEXT,
+            video_url TEXT,
+            description TEXT,
+            latitude DOUBLE PRECISION NOT NULL,
+            longitude DOUBLE PRECISION NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `)
+      } catch (err: unknown) {
+        // Ignore duplicate type error (23505 on pg_type) - table already exists
+        const pgErr = err as { code?: string; table?: string }
+        if (pgErr.code === "23505" && pgErr.table === "pg_type") {
+          return
+        }
+        throw err
+      }
     })()
   }
   return schemaReady
