@@ -11,7 +11,8 @@ export function requireAdmin(request: NextRequest) {
     )
   }
 
-  const provided = headerKeys
+  // Check headers first
+  const fromHeader = headerKeys
     .map((key) => request.headers.get(key))
     .filter(Boolean)
     .map((value) => {
@@ -23,9 +24,15 @@ export function requireAdmin(request: NextRequest) {
     })
     .find(Boolean)
 
-  if (!provided || provided !== expected) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (fromHeader === expected) {
+    return null
   }
 
-  return null
+  // Check session cookie
+  const fromCookie = request.cookies.get("vlogmap-session")?.value
+  if (fromCookie === expected) {
+    return null
+  }
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 }

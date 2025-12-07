@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, LogOut, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,10 +14,10 @@ import { toast } from "@/components/ui/sonner"
 import type { Marker, MarkerInput } from "@/types/markers"
 
 const fetcher = (url: string) =>
-  fetch(url).then(async (res) => {
+  fetch(url, { credentials: "include" }).then(async (res) => {
     if (!res.ok) {
       const message = await res.text()
-      throw new Error(message || "Failed to load markers")
+      throw new Error(message || "Failed to load")
     }
     return res.json()
   })
@@ -32,35 +33,34 @@ const emptyMarker: MarkerInput = {
 }
 
 export default function AdminPage() {
+  const router = useRouter()
+  const { data: authData, isLoading: authLoading } = useSWR<{ authenticated: boolean }>(
+    "/api/auth/check",
+    fetcher,
+  )
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
-  const [adminSecret, setAdminSecret] = useState(() => {
-    if (typeof window === "undefined") return ""
-    return window.localStorage.getItem("vlogmap-admin") || ""
-  })
   const [form, setForm] = useState<MarkerInput>(emptyMarker)
   const [editingId, setEditingId] = useState<number | null>(null)
 
   useEffect(() => {
-    if (adminSecret) {
-      window.localStorage.setItem("vlogmap-admin", adminSecret)
+    if (!authLoading && authData && !authData.authenticated) {
+      router.push("/login")
     }
-  }, [adminSecret])
+  }, [authData, authLoading, router])
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+    router.push("/login")
+  }
 
   const handleSave = async () => {
-    if (!adminSecret) {
-      toast.error("Enter the admin password first")
-      return
-    }
-
     const endpoint = editingId ? `/api/markers/${editingId}` : "/api/markers"
     const method = editingId ? "PUT" : "POST"
 
     const res = await fetch(endpoint, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-secret": adminSecret,
-      },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(form),
     })
 
@@ -77,16 +77,11 @@ export default function AdminPage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!adminSecret) {
-      toast.error("Enter the admin password first")
-      return
-    }
-
     if (!confirm("Delete this marker?")) return
 
     const res = await fetch(`/api/markers/${id}`, {
       method: "DELETE",
-      headers: { "x-admin-secret": adminSecret },
+      credentials: "include",
     })
 
     if (!res.ok) {
@@ -118,6 +113,14 @@ export default function AdminPage() {
     setForm(emptyMarker)
   }
 
+  if (authLoading || !authData?.authenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <p className="text-slate-400">Checking authentication...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/90 backdrop-blur">
@@ -131,30 +134,24 @@ export default function AdminPage() {
             </Link>
             <h1 className="text-lg font-semibold">Admin Portal</h1>
           </div>
-          <span className="text-sm text-slate-400">
-            {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-400">
+              {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
+            </span>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
-        {/* Auth + Form */}
+        {/* Form */}
         <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
           <h2 className="mb-4 text-base font-semibold">
             {editingId ? "Edit Marker" : "Add New Marker"}
           </h2>
-
-          <div className="mb-4 space-y-2">
-            <Label htmlFor="admin-secret">Admin Password</Label>
-            <Input
-              id="admin-secret"
-              type="password"
-              placeholder="••••••••"
-              value={adminSecret}
-              onChange={(e) => setAdminSecret(e.target.value)}
-              className="max-w-xs"
-            />
-          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -332,4 +329,3 @@ export default function AdminPage() {
     </div>
   )
 }
-
