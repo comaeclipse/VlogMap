@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
@@ -41,6 +41,13 @@ export default function AdminPage() {
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const [form, setForm] = useState<MarkerInput>(emptyMarker)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const creatorOptions = useMemo(
+    () =>
+      Array.from(new Set((data ?? []).map((m) => m.creator).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [data],
+  )
 
   useEffect(() => {
     if (!authLoading && authData && !authData.authenticated) {
@@ -167,10 +174,16 @@ export default function AdminPage() {
               <Label htmlFor="creator">Creator</Label>
               <Input
                 id="creator"
+                list="creator-options"
                 placeholder="Channel name"
                 value={form.creator}
                 onChange={(e) => setForm({ ...form, creator: e.target.value })}
               />
+              <datalist id="creator-options">
+                {creatorOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
             <div className="space-y-2">
               <Label htmlFor="channelUrl">Channel URL</Label>
