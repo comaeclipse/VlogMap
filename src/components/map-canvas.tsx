@@ -16,6 +16,45 @@ const tileUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{
 const attribution =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
+// Generate a consistent gradient for each creator
+function getCreatorGradient(creator: string): string {
+  // Simple hash function to generate a number from the creator name
+  let hash = 0
+  for (let i = 0; i < creator.length; i++) {
+    hash = creator.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  // Generate two distinct hues for the gradient
+  const hue1 = Math.abs(hash % 360)
+  const hue2 = (hue1 + 120) % 360 // 120 degrees apart for good contrast
+
+  // Use vibrant colors with good saturation and lightness
+  const color1 = `hsl(${hue1}, 75%, 60%)`
+  const color2 = `hsl(${hue2}, 75%, 60%)`
+
+  return `linear-gradient(135deg, ${color1}, ${color2})`
+}
+
+function createPinIcon(creator: string) {
+  const gradient = getCreatorGradient(creator)
+  return L.divIcon({
+    className: "vlog-pin",
+    html: `
+      <div style="
+        width: 14px;
+        height: 14px;
+        border-radius: 9999px;
+        background: ${gradient};
+        border: 2px solid #0f172a;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.28);
+      "></div>
+    `,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -8],
+  })
+}
+
 function Recenter({ marker }: { marker?: MarkerType | null }) {
   const map = useMap()
 
@@ -28,26 +67,15 @@ function Recenter({ marker }: { marker?: MarkerType | null }) {
 }
 
 export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
-  const pinIcon = useMemo(
-    () =>
-      L.divIcon({
-        className: "vlog-pin",
-        html: `
-          <div style="
-            width: 14px;
-            height: 14px;
-            border-radius: 9999px;
-            background: linear-gradient(135deg, #d946ef, #22d3ee);
-            border: 2px solid #0f172a;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.28);
-          "></div>
-        `,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-        popupAnchor: [0, -8],
-      }),
-    [],
-  )
+  const markerIcons = useMemo(() => {
+    const icons = new Map<string, L.DivIcon>()
+    markers.forEach((marker) => {
+      if (!icons.has(marker.creator)) {
+        icons.set(marker.creator, createPinIcon(marker.creator))
+      }
+    })
+    return icons
+  }, [markers])
 
   return (
     <MapContainer
@@ -69,7 +97,7 @@ export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
         <Marker
           key={marker.id}
           position={[marker.latitude, marker.longitude]}
-          icon={pinIcon}
+          icon={markerIcons.get(marker.creator) || createPinIcon(marker.creator)}
           eventHandlers={{
             click: () => onSelect?.(marker),
           }}
