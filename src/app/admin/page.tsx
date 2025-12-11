@@ -357,12 +357,13 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
-        {/* Form */}
-        <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
-          <h2 className="mb-4 text-base font-semibold">
-            {editingId ? "Edit Marker" : "Add New Marker"}
-          </h2>
+      <main className="mx-auto max-w-7xl space-y-8 p-4 md:p-6">
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* Form */}
+          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+            <h2 className="mb-4 text-base font-semibold">
+              {editingId ? "Edit Marker" : "Add New Marker"}
+            </h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -575,11 +576,11 @@ export default function AdminPage() {
               </Button>
             )}
           </div>
-        </section>
+          </section>
 
-        {/* Videos & Locations */}
-        <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
-          <h2 className="mb-4 text-base font-semibold">Videos & Locations</h2>
+          {/* Videos & Locations */}
+          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+            <h2 className="mb-4 text-base font-semibold">Videos & Locations</h2>
 
           {error && (
             <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
@@ -656,7 +657,8 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-        </section>
+          </section>
+        </div>
 
         {/* Batch Edit Dialog */}
         <BatchEditDialog
