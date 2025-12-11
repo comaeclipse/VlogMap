@@ -13,6 +13,7 @@ export const markerSchema = z.object({
     .string()
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 })
 
 export type MarkerPayload = z.infer<typeof markerSchema>
@@ -23,6 +24,7 @@ export const locationUpdateSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180),
   description: z.string().max(500).optional().or(z.literal("").transform(() => undefined)),
   city: z.string().max(120).optional().or(z.literal("").transform(() => undefined)),
+  screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 })
 
 export const batchUpdateSchema = z.object({

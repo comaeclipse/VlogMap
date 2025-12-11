@@ -1,0 +1,403 @@
+"use client"
+
+import { useEffect, useState, use } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import useSWR from "swr"
+import { ArrowLeft, Upload, Trash2, Save, Loader2 } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/components/ui/sonner"
+import { extractYouTubeId } from "@/lib/youtube"
+import type { Marker } from "@/types/markers"
+
+const fetcher = (url: string) =>
+  fetch(url, { credentials: "include" }).then(async (res) => {
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(message || "Failed to load")
+    }
+    return res.json()
+  })
+
+type LocationEdit = {
+  id: number
+  latitude: number
+  longitude: number
+  description: string
+  city: string
+  screenshotUrl: string
+}
+
+export default function EditVideoPage({
+  params,
+}: {
+  params: Promise<{ videoId: string }>
+}) {
+  const { videoId } = use(params)
+  const router = useRouter()
+
+  const { data: authData } = useSWR<{ authenticated: boolean }>(
+    "/api/auth/check",
+    fetcher
+  )
+
+  const { data: allMarkers, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
+
+  const [locations, setLocations] = useState<LocationEdit[]>([])
+  const [videoInfo, setVideoInfo] = useState<{
+    title: string
+    creator: string
+    channelUrl?: string
+    videoPublishedAt?: string
+  } | null>(null)
+  const [uploadingFor, setUploadingFor] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Filter markers by videoId
+  useEffect(() => {
+    if (!allMarkers) return
+
+    const matchingMarkers = allMarkers.filter((m) => {
+      if (!m.videoUrl) return false
+      const urlVideoId = extractYouTubeId(m.videoUrl)
+      return urlVideoId === videoId
+    })
+
+    if (matchingMarkers.length === 0) {
+      toast.error("No locations found for this video")
+      return
+    }
+
+    // Set video info from first marker
+    const first = matchingMarkers[0]
+    setVideoInfo({
+      title: first.title,
+      creator: first.creator,
+      channelUrl: first.channelUrl ?? undefined,
+      videoPublishedAt: first.videoPublishedAt ?? undefined,
+    })
+
+    // Set locations
+    setLocations(
+      matchingMarkers.map((m) => ({
+        id: m.id,
+        latitude: m.latitude,
+        longitude: m.longitude,
+        description: m.description ?? "",
+        city: m.city ?? "",
+        screenshotUrl: m.screenshotUrl ?? "",
+      }))
+    )
+  }, [allMarkers, videoId])
+
+  useEffect(() => {
+    if (authData && !authData.authenticated) {
+      router.push("/login")
+    }
+  }, [authData, router])
+
+  const handleFileUpload = async (locationId: number, file: File) => {
+    setUploadingFor(locationId)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("markerId", locationId.toString())
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "Upload failed")
+      }
+
+      const { url } = await res.json()
+
+      // Update local state
+      setLocations((prev) =>
+        prev.map((loc) =>
+          loc.id === locationId ? { ...loc, screenshotUrl: url } : loc
+        )
+      )
+
+      toast.success("Screenshot uploaded")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed")
+    } finally {
+      setUploadingFor(null)
+    }
+  }
+
+  const updateLocation = (
+    id: number,
+    field: keyof LocationEdit,
+    value: string | number
+  ) => {
+    setLocations((prev) =>
+      prev.map((loc) => (loc.id === id ? { ...loc, [field]: value } : loc))
+    )
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      // Find the video URL from original markers
+      const videoUrl = allMarkers?.find((m) => {
+        const urlVideoId = extractYouTubeId(m.videoUrl ?? "")
+        return urlVideoId === videoId
+      })?.videoUrl
+
+      if (!videoUrl) {
+        throw new Error("Could not find video URL")
+      }
+
+      const res = await fetch("/api/markers/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          videoUrl,
+          updates: locations,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "Failed to save")
+      }
+
+      await mutate()
+      toast.success("Changes saved")
+      router.push("/admin")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!authData?.authenticated || !videoInfo) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <p className="text-slate-400">Loading...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/90 backdrop-blur">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+          <Link href="/admin">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Admin
+            </Button>
+          </Link>
+          <h1 className="text-lg font-semibold">Edit Video Locations</h1>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+        {/* Video Info Card */}
+        <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+          <h2 className="text-xl font-semibold">{videoInfo.title}</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            {videoInfo.creator}
+            {videoInfo.videoPublishedAt && (
+              <> · Published: {new Date(videoInfo.videoPublishedAt).toLocaleDateString()}</>
+            )}
+          </p>
+          {videoInfo.channelUrl && (
+            <a
+              href={videoInfo.channelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-sm text-blue-400 hover:underline"
+            >
+              View Channel
+            </a>
+          )}
+        </div>
+
+        {/* Locations List */}
+        <div className="space-y-4">
+          {locations.map((location, index) => (
+            <div
+              key={location.id}
+              className="rounded-xl border border-white/10 bg-slate-900/60 p-5"
+            >
+              <h3 className="mb-4 text-base font-semibold">
+                Location {index + 1}
+              </h3>
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor={`lat-${location.id}`}>Latitude</Label>
+                    <Input
+                      id={`lat-${location.id}`}
+                      type="number"
+                      step="0.0001"
+                      value={location.latitude}
+                      onChange={(e) =>
+                        updateLocation(location.id, "latitude", Number(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`lng-${location.id}`}>Longitude</Label>
+                    <Input
+                      id={`lng-${location.id}`}
+                      type="number"
+                      step="0.0001"
+                      value={location.longitude}
+                      onChange={(e) =>
+                        updateLocation(location.id, "longitude", Number(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`city-${location.id}`}>City</Label>
+                    <Input
+                      id={`city-${location.id}`}
+                      value={location.city}
+                      onChange={(e) =>
+                        updateLocation(location.id, "city", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`desc-${location.id}`}>Description</Label>
+                    <Textarea
+                      id={`desc-${location.id}`}
+                      value={location.description}
+                      onChange={(e) =>
+                        updateLocation(location.id, "description", e.target.value)
+                      }
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
+                {/* Screenshot Upload */}
+                <div className="space-y-2">
+                  <Label>Screenshot</Label>
+                  {location.screenshotUrl ? (
+                    <div className="space-y-2">
+                      <img
+                        src={location.screenshotUrl}
+                        alt={`Screenshot for location ${index + 1}`}
+                        className="max-h-64 rounded-lg border border-white/10"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement("input")
+                            input.type = "file"
+                            input.accept = "image/png,image/jpeg,image/jpg,image/webp"
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0]
+                              if (file) handleFileUpload(location.id, file)
+                            }
+                            input.click()
+                          }}
+                          disabled={uploadingFor === location.id}
+                        >
+                          {uploadingFor === location.id ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Replace
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() =>
+                            updateLocation(location.id, "screenshotUrl", "")
+                          }
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border-2 border-dashed border-white/10 p-8 text-center">
+                      <Upload className="mx-auto h-12 w-12 text-slate-400" />
+                      <p className="mt-2 text-sm text-slate-400">
+                        No screenshot uploaded
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => {
+                          const input = document.createElement("input")
+                          input.type = "file"
+                          input.accept = "image/png,image/jpeg,image/jpg,image/webp"
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0]
+                            if (file) handleFileUpload(location.id, file)
+                          }
+                          input.click()
+                        }}
+                        disabled={uploadingFor === location.id}
+                      >
+                        {uploadingFor === location.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload Screenshot
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Save Button */}
+        <div className="flex justify-end gap-2 pb-8">
+          <Button variant="secondary" onClick={() => router.push("/admin")}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save All Changes
+              </>
+            )}
+          </Button>
+        </div>
+      </main>
+    </div>
+  )
+}

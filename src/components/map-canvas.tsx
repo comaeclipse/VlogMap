@@ -108,6 +108,15 @@ export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
                 {marker.creator}
               </p>
               <p className="font-semibold text-slate-900">{marker.title}</p>
+              {marker.screenshotUrl && (
+                <div className="py-2">
+                  <img
+                    src={marker.screenshotUrl}
+                    alt={marker.title}
+                    className="max-w-[280px] rounded-md border border-slate-200"
+                  />
+                </div>
+              )}
               {marker.description ? (
                 <p className="text-slate-600">{marker.description}</p>
               ) : null}

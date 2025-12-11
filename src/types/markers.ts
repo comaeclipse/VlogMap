@@ -9,6 +9,7 @@ export type Marker = {
   longitude: number
   city?: string | null
   videoPublishedAt?: string | null
+  screenshotUrl?: string | null
   createdAt?: string
 }
 
@@ -30,6 +31,7 @@ export type LocationEdit = {
   longitude: number
   description?: string
   city?: string
+  screenshotUrl?: string
 }
 
 export type BatchUpdatePayload = {

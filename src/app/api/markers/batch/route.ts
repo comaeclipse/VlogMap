@@ -37,14 +37,15 @@ export async function POST(request: NextRequest) {
         // Update the marker
         const { rows } = await query<MarkerRow>(
           `UPDATE explorer_markers
-           SET latitude = $1, longitude = $2, description = $3, city = $4
-           WHERE id = $5
-           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, created_at`,
+           SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5
+           WHERE id = $6
+           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, created_at`,
           [
             update.latitude,
             update.longitude,
             update.description ?? null,
             update.city ?? null,
+            update.screenshotUrl ?? null,
             update.id,
           ]
         )

@@ -1,9 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { extractYouTubeId } from "@/lib/youtube"
 import type { VideoGroup } from "@/types/markers"
 
 type VideoCardProps = {
@@ -24,7 +26,13 @@ export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation 
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-white truncate">{video.title}</h3>
+            <Link
+              href={`/edit/${extractYouTubeId(video.videoUrl) || ''}`}
+              className="font-medium text-white truncate hover:text-blue-400 transition-colors block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {video.title}
+            </Link>
             <p className="text-sm text-slate-400 mt-1">
               {video.creator} · {video.locationCount} location{video.locationCount !== 1 ? 's' : ''}
             </p>
