@@ -60,7 +60,7 @@ function Recenter({ marker }: { marker?: MarkerType | null }) {
 
   useEffect(() => {
     if (!marker) return
-    map.flyTo([marker.latitude, marker.longitude], 5, { duration: 0.8 })
+    map.panTo([marker.latitude, marker.longitude], { animate: true, duration: 0.8 })
   }, [map, marker])
 
   return null
