@@ -27,10 +27,22 @@ export const locationUpdateSchema = z.object({
   screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 })
 
+export const videoMetadataSchema = z.object({
+  title: z.string().min(2).max(120).optional(),
+  creator: z.string().min(2).max(120).optional(),
+  channelUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  videoPublishedAt: z
+    .string()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+})
+
 export const batchUpdateSchema = z.object({
   videoUrl: z.string().url().min(1),
   updates: z.array(locationUpdateSchema).min(1),
+  videoMetadata: videoMetadataSchema.optional(),
 })
 
 export type LocationUpdatePayload = z.infer<typeof locationUpdateSchema>
+export type VideoMetadataPayload = z.infer<typeof videoMetadataSchema>
 export type BatchUpdatePayload = z.infer<typeof batchUpdateSchema>

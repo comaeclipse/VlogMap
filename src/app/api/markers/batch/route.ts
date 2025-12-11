@@ -19,6 +19,39 @@ export async function POST(request: NextRequest) {
     try {
       const updatedMarkers: MarkerRow[] = []
 
+      // Update video metadata if provided
+      if (payload.videoMetadata) {
+        const metadata = payload.videoMetadata
+        const updates: string[] = []
+        const values: (string | null)[] = []
+        let paramIndex = 1
+
+        if (metadata.title !== undefined) {
+          updates.push(`title = $${paramIndex++}`)
+          values.push(metadata.title)
+        }
+        if (metadata.creator !== undefined) {
+          updates.push(`creator = $${paramIndex++}`)
+          values.push(metadata.creator)
+        }
+        if (metadata.channelUrl !== undefined) {
+          updates.push(`channel_url = $${paramIndex++}`)
+          values.push(metadata.channelUrl ?? null)
+        }
+        if (metadata.videoPublishedAt !== undefined) {
+          updates.push(`video_published_at = $${paramIndex++}`)
+          values.push(metadata.videoPublishedAt ?? null)
+        }
+
+        if (updates.length > 0) {
+          values.push(payload.videoUrl)
+          await query(
+            `UPDATE explorer_markers SET ${updates.join(", ")} WHERE video_url = $${paramIndex}`,
+            values
+          )
+        }
+      }
+
       for (const update of payload.updates) {
         // Verify marker belongs to this video
         const { rows: checkRows } = await query<{ video_url: string }>(

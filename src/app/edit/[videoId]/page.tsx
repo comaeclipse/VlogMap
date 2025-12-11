@@ -51,8 +51,8 @@ export default function EditVideoPage({
   const [videoInfo, setVideoInfo] = useState<{
     title: string
     creator: string
-    channelUrl?: string
-    videoPublishedAt?: string
+    channelUrl: string
+    videoPublishedAt: string
   } | null>(null)
   const [uploadingFor, setUploadingFor] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -77,8 +77,8 @@ export default function EditVideoPage({
     setVideoInfo({
       title: first.title,
       creator: first.creator,
-      channelUrl: first.channelUrl ?? undefined,
-      videoPublishedAt: first.videoPublishedAt ?? undefined,
+      channelUrl: first.channelUrl ?? "",
+      videoPublishedAt: first.videoPublishedAt ?? "",
     })
 
     // Set locations
@@ -158,6 +158,10 @@ export default function EditVideoPage({
         throw new Error("Could not find video URL")
       }
 
+      if (!videoInfo) {
+        throw new Error("Video info not loaded")
+      }
+
       const res = await fetch("/api/markers/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,6 +169,12 @@ export default function EditVideoPage({
         body: JSON.stringify({
           videoUrl,
           updates: locations,
+          videoMetadata: {
+            title: videoInfo.title,
+            creator: videoInfo.creator,
+            channelUrl: videoInfo.channelUrl || undefined,
+            videoPublishedAt: videoInfo.videoPublishedAt || undefined,
+          },
         }),
       })
 
@@ -206,25 +216,65 @@ export default function EditVideoPage({
       </header>
 
       <main className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
-        {/* Video Info Card */}
+        {/* Video Metadata Card */}
         <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
-          <h2 className="text-xl font-semibold">{videoInfo.title}</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            {videoInfo.creator}
-            {videoInfo.videoPublishedAt && (
-              <> · Published: {new Date(videoInfo.videoPublishedAt).toLocaleDateString()}</>
-            )}
-          </p>
-          {videoInfo.channelUrl && (
-            <a
-              href={videoInfo.channelUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block text-sm text-blue-400 hover:underline"
-            >
-              View Channel
-            </a>
-          )}
+          <h3 className="mb-4 text-lg font-semibold">Video Metadata</h3>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="video-title">Title</Label>
+              <Input
+                id="video-title"
+                value={videoInfo.title}
+                onChange={(e) =>
+                  setVideoInfo({ ...videoInfo, title: e.target.value })
+                }
+                placeholder="Video title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="video-creator">Creator</Label>
+              <Input
+                id="video-creator"
+                value={videoInfo.creator}
+                onChange={(e) =>
+                  setVideoInfo({ ...videoInfo, creator: e.target.value })
+                }
+                placeholder="Creator name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="video-channel-url">Channel URL</Label>
+              <Input
+                id="video-channel-url"
+                type="url"
+                value={videoInfo.channelUrl}
+                onChange={(e) =>
+                  setVideoInfo({ ...videoInfo, channelUrl: e.target.value })
+                }
+                placeholder="https://youtube.com/@channel"
+              />
+            </div>
+            <div>
+              <Label htmlFor="video-published-at">Published Date</Label>
+              <Input
+                id="video-published-at"
+                type="date"
+                value={
+                  videoInfo.videoPublishedAt
+                    ? videoInfo.videoPublishedAt.split("T")[0]
+                    : ""
+                }
+                onChange={(e) =>
+                  setVideoInfo({
+                    ...videoInfo,
+                    videoPublishedAt: e.target.value
+                      ? new Date(e.target.value).toISOString()
+                      : "",
+                  })
+                }
+              />
+            </div>
+          </div>
         </div>
 
         {/* Locations List */}
