@@ -76,7 +76,7 @@ export default function Home() {
               <SelectTrigger className="w-[180px] h-9 text-xs">
                 <SelectValue placeholder="All Creators" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[9999]">
                 <SelectItem value="all">All Creators</SelectItem>
                 {creators.map((creator) => (
                   <SelectItem key={creator} value={creator}>

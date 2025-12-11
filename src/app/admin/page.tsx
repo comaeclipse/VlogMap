@@ -11,6 +11,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/sonner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { groupMarkersByVideo } from "@/lib/group-markers"
 import { VideoCard } from "@/components/admin/video-card"
 import { BatchEditDialog } from "@/components/admin/batch-edit-dialog"
@@ -59,6 +66,7 @@ export default function AdminPage() {
   const [geoLoading, setGeoLoading] = useState(false)
   const [batchEditVideo, setBatchEditVideo] = useState<VideoGroup | null>(null)
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [selectedCreator, setSelectedCreator] = useState<string>("all")
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
     form.videoUrl ? ["/api/markers", form.videoUrl] : null,
@@ -75,6 +83,16 @@ export default function AdminPage() {
     () => groupMarkersByVideo(data || []),
     [data]
   )
+
+  const filteredVideoGroups = useMemo(() => {
+    if (selectedCreator === "all") return videoGroups
+    return videoGroups.filter(video => video.creator === selectedCreator)
+  }, [videoGroups, selectedCreator])
+
+  const filteredUncategorized = useMemo(() => {
+    if (selectedCreator === "all") return uncategorized
+    return uncategorized.filter(marker => marker.creator === selectedCreator)
+  }, [uncategorized, selectedCreator])
 
   useEffect(() => {
     if (!authLoading && authData && !authData.authenticated) {
@@ -315,6 +333,19 @@ export default function AdminPage() {
             <h1 className="text-lg font-semibold">Admin Portal</h1>
           </div>
           <div className="flex items-center gap-3">
+            <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+              <SelectTrigger className="w-[180px] h-9 text-xs">
+                <SelectValue placeholder="All Creators" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999]">
+                <SelectItem value="all">All Creators</SelectItem>
+                {creatorOptions.map((creator) => (
+                  <SelectItem key={creator} value={creator}>
+                    {creator}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="text-sm text-slate-400">
               {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
             </span>
@@ -566,7 +597,7 @@ export default function AdminPage() {
 
           {/* Video Groups */}
           <div className="space-y-3">
-            {videoGroups.map(video => (
+            {filteredVideoGroups.map(video => (
               <VideoCard
                 key={video.videoUrl}
                 video={video}
@@ -581,7 +612,7 @@ export default function AdminPage() {
           </div>
 
           {/* Uncategorized Section */}
-          {uncategorized.length > 0 && (
+          {filteredUncategorized.length > 0 && (
             <div className="mt-6 border-t border-white/10 pt-6">
               <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
                 <p className="text-sm text-amber-200">
@@ -591,11 +622,11 @@ export default function AdminPage() {
               </div>
 
               <h3 className="mb-3 text-sm font-semibold text-slate-400">
-                Uncategorized ({uncategorized.length})
+                Uncategorized ({filteredUncategorized.length})
               </h3>
 
               <div className="space-y-2">
-                {uncategorized.map((marker) => (
+                {filteredUncategorized.map((marker) => (
                   <div
                     key={marker.id}
                     className="flex flex-col gap-3 rounded-lg border border-white/5 bg-slate-800/50 p-4 sm:flex-row sm:items-center sm:justify-between"
