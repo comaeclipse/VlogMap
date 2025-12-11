@@ -26,6 +26,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ password }),
       })
 
@@ -36,6 +37,7 @@ export default function LoginPage() {
       }
 
       toast.success("Logged in")
+      router.refresh()
       router.push("/admin")
     } finally {
       setLoading(false)
