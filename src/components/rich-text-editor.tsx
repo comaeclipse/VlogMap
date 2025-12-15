@@ -40,6 +40,10 @@ export function RichTextEditor({
     return null
   }
 
+  const htmlLength = editor.getHTML().length
+  const textLength = editor.getText().length
+  const maxLength = 10000
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1 rounded-md border border-white/10 bg-slate-900/60 p-1">
@@ -117,6 +121,14 @@ export function RichTextEditor({
           {placeholder}
         </p>
       )}
+      <div className="flex justify-between text-xs text-slate-400">
+        <span>
+          {textLength} characters (HTML: {htmlLength}/{maxLength})
+        </span>
+        {htmlLength > maxLength && (
+          <span className="text-red-400">Content exceeds maximum length</span>
+        )}
+      </div>
     </div>
   )
 }
