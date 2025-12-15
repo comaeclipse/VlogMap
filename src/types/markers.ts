@@ -39,3 +39,7 @@ export type BatchUpdatePayload = {
   videoUrl: string
   updates: LocationEdit[]
 }
+
+export type NearbyVideo = VideoGroup & {
+  distanceKm: number
+}
