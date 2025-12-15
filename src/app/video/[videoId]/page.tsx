@@ -106,9 +106,25 @@ export default async function VideoDetailPage({
       {/* Content */}
       <main>
         <VideoHeader markers={markers} videoId={videoId} />
-        <VideoMapSection markers={markers} />
-        <PhotoGallery markers={markers} />
-        <VideoSummarySection summary={markers[0]?.summary} />
+
+        {/* Two-column layout */}
+        <div className="border-b border-white/10 bg-slate-950">
+          <div className="mx-auto max-w-6xl px-4 py-8">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Left column: Map + Photo Gallery */}
+              <div className="space-y-6">
+                <VideoMapSection markers={markers} />
+                <PhotoGallery markers={markers} />
+              </div>
+
+              {/* Right column: Video Summary */}
+              <div>
+                <VideoSummarySection summary={markers[0]?.summary} />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <NearbyVideosSection videos={nearbyVideos} />
       </main>
     </div>

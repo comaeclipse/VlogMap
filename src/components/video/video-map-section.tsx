@@ -8,7 +8,7 @@ const MapCanvas = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center bg-slate-900">
+      <div className="flex h-full items-center justify-center rounded-lg bg-slate-900">
         <p className="text-sm text-slate-400">Loading map...</p>
       </div>
     ),
@@ -23,15 +23,13 @@ export function VideoMapSection({ markers }: VideoMapSectionProps) {
   if (markers.length === 0) return null
 
   return (
-    <section className="border-b border-white/10 bg-slate-900">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <h2 className="mb-4 text-2xl font-semibold text-slate-50">
-          Filming Locations
-        </h2>
+    <div className="space-y-3">
+      <h2 className="text-xl font-semibold text-slate-50">
+        Filming Locations
+      </h2>
+      <div className="h-[300px] overflow-hidden rounded-lg border border-white/10">
+        <MapCanvas markers={markers} autoFit={true} />
       </div>
-      <div className="h-[300px] md:h-[500px]">
-        <MapCanvas markers={markers} />
-      </div>
-    </section>
+    </div>
   )
 }

@@ -33,14 +33,11 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
   if (images.length === 0) return null
 
   return (
-    <section className="border-b border-white/10 bg-slate-950">
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="mb-6 text-2xl font-semibold text-slate-50">
-          Photo Gallery
-        </h2>
+    <div className="space-y-3">
+      <h2 className="text-xl font-semibold text-slate-50">Photo Gallery</h2>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {images.map((image, idx) => (
+      <div className="grid gap-3 grid-cols-2">
+        {images.map((image, idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -69,13 +66,12 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
           ))}
         </div>
 
-        <Lightbox
-          open={lightboxOpen}
-          close={() => setLightboxOpen(false)}
-          index={lightboxIndex}
-          slides={images.map((img) => ({ src: img.src }))}
-        />
-      </div>
-    </section>
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        index={lightboxIndex}
+        slides={images.map((img) => ({ src: img.src }))}
+      />
+    </div>
   )
 }

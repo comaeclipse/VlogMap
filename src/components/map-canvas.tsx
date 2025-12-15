@@ -13,6 +13,7 @@ type Props = {
   markers: MarkerType[]
   onSelect?: (marker: MarkerType) => void
   focusMarker?: MarkerType | null
+  autoFit?: boolean
 }
 
 const tileUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -69,7 +70,31 @@ function Recenter({ marker }: { marker?: MarkerType | null }) {
   return null
 }
 
-export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
+function AutoFitBounds({ markers }: { markers: MarkerType[] }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (markers.length === 0) return
+
+    if (markers.length === 1) {
+      // Single marker - center on it with a good zoom level
+      map.setView([markers[0].latitude, markers[0].longitude], 13)
+    } else {
+      // Multiple markers - fit bounds
+      const bounds = L.latLngBounds(
+        markers.map((m) => [m.latitude, m.longitude])
+      )
+      map.fitBounds(bounds, {
+        padding: [30, 30],
+        maxZoom: 15,
+      })
+    }
+  }, [map, markers])
+
+  return null
+}
+
+export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxImage, setLightboxImage] = useState<string>("")
 
@@ -102,7 +127,11 @@ export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
     >
       <TileLayer url={tileUrl} attribution={attribution} />
 
-      <Recenter marker={focusMarker} />
+      {autoFit ? (
+        <AutoFitBounds markers={markers} />
+      ) : (
+        <Recenter marker={focusMarker} />
+      )}
 
       {markers.map((marker) => (
         <Marker
