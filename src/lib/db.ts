@@ -13,6 +13,7 @@ export type MarkerRow = {
   city: string | null
   video_published_at: string | null
   screenshot_url: string | null
+  summary: string | null
   created_at: string
 }
 
@@ -80,6 +81,9 @@ async function ensureSchema() {
         await getPool().query(
           `ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS screenshot_url TEXT`,
         )
+        await getPool().query(
+          `ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS summary TEXT`,
+        )
       } catch (err: unknown) {
         // Ignore duplicate type error (23505 on pg_type) - table already exists
         const pgErr = err as { code?: string; table?: string }
@@ -117,6 +121,7 @@ export function mapMarkerRow(row: MarkerRow) {
     city: row.city,
     videoPublishedAt: row.video_published_at,
     screenshotUrl: row.screenshot_url,
+    summary: row.summary,
     createdAt: row.created_at,
   }
 }

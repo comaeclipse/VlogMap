@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
           updates.push(`video_published_at = $${paramIndex++}`)
           values.push(metadata.videoPublishedAt ?? null)
         }
+        if (metadata.summary !== undefined) {
+          updates.push(`summary = $${paramIndex++}`)
+          values.push(metadata.summary ?? null)
+        }
 
         if (updates.length > 0) {
           values.push(payload.videoUrl)
@@ -72,7 +76,7 @@ export async function POST(request: NextRequest) {
           `UPDATE explorer_markers
            SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5
            WHERE id = $6
-           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, created_at`,
+           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at`,
           [
             update.latitude,
             update.longitude,

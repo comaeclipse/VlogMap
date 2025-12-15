@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/sonner"
+import { RichTextEditor } from "@/components/rich-text-editor"
 import { extractYouTubeId } from "@/lib/youtube"
 import type { Marker } from "@/types/markers"
 
@@ -53,6 +54,7 @@ export default function EditVideoPage({
     creator: string
     channelUrl: string
     videoPublishedAt: string
+    summary: string
   } | null>(null)
   const [uploadingFor, setUploadingFor] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -79,6 +81,7 @@ export default function EditVideoPage({
       creator: first.creator,
       channelUrl: first.channelUrl ?? "",
       videoPublishedAt: first.videoPublishedAt ?? "",
+      summary: first.summary ?? "",
     })
 
     // Set locations
@@ -174,6 +177,7 @@ export default function EditVideoPage({
             creator: videoInfo.creator,
             channelUrl: videoInfo.channelUrl || undefined,
             videoPublishedAt: videoInfo.videoPublishedAt || undefined,
+            summary: videoInfo.summary || undefined,
           },
         }),
       })
@@ -273,6 +277,19 @@ export default function EditVideoPage({
                   })
                 }
               />
+            </div>
+            <div>
+              <Label htmlFor="video-summary">Video Summary</Label>
+              <RichTextEditor
+                content={videoInfo.summary}
+                onChange={(content) =>
+                  setVideoInfo({ ...videoInfo, summary: content })
+                }
+                placeholder="Brief summary of the video content (not the same as YouTube description)"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Optional: Add a custom summary to help users understand what this video is about
+              </p>
             </div>
           </div>
         </div>

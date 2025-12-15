@@ -14,6 +14,7 @@ export const markerSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  summary: z.string().max(2000).optional().or(z.literal("").transform(() => undefined)),
 })
 
 export type MarkerPayload = z.infer<typeof markerSchema>
@@ -35,6 +36,7 @@ export const videoMetadataSchema = z.object({
     .string()
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  summary: z.string().max(2000).optional().or(z.literal("").transform(() => undefined)),
 })
 
 export const batchUpdateSchema = z.object({

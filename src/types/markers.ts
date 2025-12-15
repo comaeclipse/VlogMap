@@ -10,6 +10,7 @@ export type Marker = {
   city?: string | null
   videoPublishedAt?: string | null
   screenshotUrl?: string | null
+  summary?: string | null
   createdAt?: string
 }
 
