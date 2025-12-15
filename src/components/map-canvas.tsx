@@ -1,10 +1,13 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet"
 import L from "leaflet"
+import Lightbox from "yet-another-react-lightbox"
+import "yet-another-react-lightbox/styles.css"
 
 import type { Marker as MarkerType } from "@/types/markers"
+import { getYouTubeThumbnailUrl } from "@/lib/youtube"
 
 type Props = {
   markers: MarkerType[]
@@ -67,6 +70,9 @@ function Recenter({ marker }: { marker?: MarkerType | null }) {
 }
 
 export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxImage, setLightboxImage] = useState<string>("")
+
   const markerIcons = useMemo(() => {
     const icons = new Map<string, L.DivIcon>()
     markers.forEach((marker) => {
@@ -76,6 +82,11 @@ export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
     })
     return icons
   }, [markers])
+
+  const handleImageClick = (imageUrl: string) => {
+    setLightboxImage(imageUrl)
+    setLightboxOpen(true)
+  }
 
   return (
     <MapContainer
@@ -108,15 +119,26 @@ export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
                 {marker.creator}
               </p>
               <p className="font-semibold text-slate-900">{marker.title}</p>
-              {marker.screenshotUrl && (
-                <div className="py-2">
-                  <img
-                    src={marker.screenshotUrl}
-                    alt={marker.title}
-                    className="max-w-[280px] rounded-md border border-slate-200"
-                  />
-                </div>
-              )}
+              {(() => {
+                const thumbnailUrl = marker.screenshotUrl || (marker.videoUrl ? getYouTubeThumbnailUrl(marker.videoUrl) : null)
+                return thumbnailUrl ? (
+                  <div className="py-2">
+                    <img
+                      src={thumbnailUrl}
+                      alt={marker.title}
+                      className="max-w-[280px] cursor-pointer rounded-md border border-slate-200 transition-opacity hover:opacity-80"
+                      onClick={() => handleImageClick(thumbnailUrl)}
+                      onError={(e) => {
+                        // Fallback to hqdefault if maxresdefault fails
+                        const target = e.target as HTMLImageElement
+                        if (target.src.includes('maxresdefault')) {
+                          target.src = target.src.replace('maxresdefault', 'hqdefault')
+                        }
+                      }}
+                    />
+                  </div>
+                ) : null
+              })()}
               {marker.description ? (
                 <p className="text-slate-600">{marker.description}</p>
               ) : null}
@@ -146,6 +168,16 @@ export function MapCanvas({ markers, onSelect, focusMarker }: Props) {
           </Popup>
         </Marker>
       ))}
+
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        slides={[{ src: lightboxImage }]}
+        render={{
+          buttonPrev: () => null,
+          buttonNext: () => null,
+        }}
+      />
     </MapContainer>
   )
 }

@@ -34,6 +34,7 @@
     "sonner": "^2.0.7",
     "swr": "^2.3.7",
     "tailwind-merge": "^3.4.0",
+    "yet-another-react-lightbox": "^3.27.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {

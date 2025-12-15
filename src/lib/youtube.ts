@@ -32,3 +32,11 @@ export function extractYouTubeId(urlString: string): string | null {
     return null
   }
 }
+
+export function getYouTubeThumbnailUrl(videoUrl: string): string | null {
+  const videoId = extractYouTubeId(videoUrl)
+  if (!videoId) return null
+
+  // Use maxresdefault for highest quality, falls back to hqdefault in the browser if not available
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+}
