@@ -9,6 +9,7 @@ import "yet-another-react-lightbox/styles.css"
 
 import type { Marker as MarkerType } from "@/types/markers"
 import { getYouTubeThumbnailUrl } from "@/lib/youtube"
+import { getCreatorGradient } from "@/lib/gradients"
 
 type Props = {
   markers: MarkerType[]
@@ -20,25 +21,6 @@ type Props = {
 const tileUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
 const attribution =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-
-// Generate a consistent gradient for each creator
-function getCreatorGradient(creator: string): string {
-  // Simple hash function to generate a number from the creator name
-  let hash = 0
-  for (let i = 0; i < creator.length; i++) {
-    hash = creator.charCodeAt(i) + ((hash << 5) - hash)
-  }
-
-  // Generate two distinct hues for the gradient
-  const hue1 = Math.abs(hash % 360)
-  const hue2 = (hue1 + 120) % 360 // 120 degrees apart for good contrast
-
-  // Use vibrant colors with good saturation and lightness
-  const color1 = `hsl(${hue1}, 75%, 60%)`
-  const color2 = `hsl(${hue2}, 75%, 60%)`
-
-  return `linear-gradient(135deg, ${color1}, ${color2})`
-}
 
 function createPinIcon(creator: string) {
   const gradient = getCreatorGradient(creator)
