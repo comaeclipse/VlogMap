@@ -15,20 +15,38 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
-  // Collect all images from markers (screenshots or YouTube thumbnails)
-  const images = markers
-    .map((marker, index) => ({
-      src:
-        marker.screenshotUrl ||
-        (marker.videoUrl ? getYouTubeThumbnailUrl(marker.videoUrl) : null),
-      alt: `${marker.title} - Location ${index + 1}`,
-      description: marker.description,
-    }))
-    .filter((img) => img.src) as Array<{
+  // Collect all unique images from markers
+  const images: Array<{
     src: string
     alt: string
     description?: string | null
-  }>
+  }> = []
+  
+  const seenUrls = new Set<string>()
+  
+  // Add screenshots from markers
+  markers.forEach((marker, index) => {
+    if (marker.screenshotUrl && !seenUrls.has(marker.screenshotUrl)) {
+      seenUrls.add(marker.screenshotUrl)
+      images.push({
+        src: marker.screenshotUrl,
+        alt: `${marker.title} - Location ${index + 1}`,
+        description: marker.description,
+      })
+    }
+  })
+  
+  // Add YouTube thumbnail once if no screenshots exist
+  if (images.length === 0 && markers.length > 0 && markers[0].videoUrl) {
+    const thumbnailUrl = getYouTubeThumbnailUrl(markers[0].videoUrl)
+    if (thumbnailUrl) {
+      images.push({
+        src: thumbnailUrl,
+        alt: markers[0].title,
+        description: null,
+      })
+    }
+  }
 
   if (images.length === 0) return null
 
