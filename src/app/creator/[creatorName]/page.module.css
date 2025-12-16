@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+.creatorPage {
+  font-family: 'Inter', sans-serif;
+}
+
+.creatorTitle {
+  font-family: 'Crimson Pro', serif;
+}
+
+.videoCard {
+  animation: videoReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.videoCard:nth-child(1) { animation-delay: 0.05s; }
+.videoCard:nth-child(2) { animation-delay: 0.1s; }
+.videoCard:nth-child(3) { animation-delay: 0.15s; }
+.videoCard:nth-child(4) { animation-delay: 0.2s; }
+.videoCard:nth-child(5) { animation-delay: 0.25s; }
+.videoCard:nth-child(6) { animation-delay: 0.3s; }
+.videoCard:nth-child(7) { animation-delay: 0.35s; }
+.videoCard:nth-child(8) { animation-delay: 0.4s; }
+.videoCard:nth-child(9) { animation-delay: 0.45s; }
+.videoCard:nth-child(n+10) { animation-delay: 0.5s; }
+
+@keyframes videoReveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.videoCard:hover {
+  transform: translateY(-4px);
+}
+
+.creatorAvatarGlow {
+  animation: avatarPulse 3s ease-in-out infinite;
+}
+
+@keyframes avatarPulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.15),
+                0 0 60px rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.2),
+                0 0 80px rgba(255, 255, 255, 0.12);
+  }
+}
+
+.atlasBg {
+  background:
+    radial-gradient(ellipse 800px 600px at 50% -20%, rgba(59, 130, 246, 0.08), transparent),
+    radial-gradient(ellipse 600px 400px at 80% 80%, rgba(236, 72, 153, 0.06), transparent);
+}
+
+.noiseTexture {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+.statBadge {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.statBadge:hover {
+  transform: scale(1.05);
+}
