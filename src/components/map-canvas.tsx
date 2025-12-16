@@ -159,10 +159,10 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
         >
           <Popup className="rounded-lg">
             <div className="text-sm">
-              <p className="mb-0.5 text-xs uppercase tracking-[0.08em] text-slate-500">
+              <p className="text-xs uppercase tracking-[0.08em] text-slate-500 leading-tight">
                 {marker.creator}
               </p>
-              <p className="mb-1 font-semibold text-slate-900">{marker.title}</p>
+              <p className="mb-1 font-semibold text-slate-900 leading-snug">{marker.title}</p>
               {marker.videoUrl && extractYouTubeVideoId(marker.videoUrl) ? (
                 <Link
                   href={`/video/${extractYouTubeVideoId(marker.videoUrl)}`}
