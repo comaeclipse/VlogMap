@@ -186,8 +186,6 @@ export default async function CreatorPage({
                         alt={video.title}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
-                      {/* Gradient overlay on hover */}
-                      <div className="absolute inset-x-0 top-0 -bottom-1 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                     </div>
                   )}
 
