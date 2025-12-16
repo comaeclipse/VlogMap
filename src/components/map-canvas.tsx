@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet"
 import L from "leaflet"
+import Link from "next/link"
 import Lightbox from "yet-another-react-lightbox"
 import "yet-another-react-lightbox/styles.css"
 
@@ -57,6 +58,20 @@ function createPinIcon(creator: string) {
     iconAnchor: [9, 9],
     popupAnchor: [0, -8],
   })
+}
+
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const urlObj = new URL(url)
+    if (urlObj.hostname.includes('youtube.com')) {
+      return urlObj.searchParams.get('v')
+    } else if (urlObj.hostname.includes('youtu.be')) {
+      return urlObj.pathname.slice(1)
+    }
+    return null
+  } catch {
+    return null
+  }
 }
 
 function Recenter({ marker }: { marker?: MarkerType | null }) {
@@ -143,11 +158,19 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
           }}
         >
           <Popup className="rounded-lg">
-            <div className="space-y-1 text-sm">
-              <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
+            <div className="text-sm">
+              <p className="mb-0.5 text-xs uppercase tracking-[0.08em] text-slate-500">
                 {marker.creator}
               </p>
-              <p className="font-semibold text-slate-900">{marker.title}</p>
+              <p className="mb-1 font-semibold text-slate-900">{marker.title}</p>
+              {marker.videoUrl && extractYouTubeVideoId(marker.videoUrl) ? (
+                <Link
+                  href={`/video/${extractYouTubeVideoId(marker.videoUrl)}`}
+                  className="mb-2 inline-block text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  view more →
+                </Link>
+              ) : null}
               {(() => {
                 const thumbnailUrl = marker.screenshotUrl || (marker.videoUrl ? getYouTubeThumbnailUrl(marker.videoUrl) : null)
                 return thumbnailUrl ? (
