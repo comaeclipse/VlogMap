@@ -26,9 +26,9 @@ export async function generateMetadata({
     const { rows } = await query<MarkerRow>(
       `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
        FROM explorer_markers
-       WHERE video_url = $1
+       WHERE video_url ILIKE $1
        LIMIT 1`,
-      [videoUrl]
+      [`%${videoId}%`]
     )
 
     if (rows.length === 0) {
@@ -36,6 +36,7 @@ export async function generateMetadata({
     }
 
     const marker = mapMarkerRow(rows[0])
+    const canonicalVideoUrl = marker.videoUrl || videoUrl
     const description = marker.summary
       ? marker.summary.replace(/<[^>]*>/g, "").slice(0, 160)
       : `Explore ${marker.title} filming locations by ${marker.creator}`
@@ -47,7 +48,7 @@ export async function generateMetadata({
         title: marker.title,
         description: `by ${marker.creator}`,
         images: [
-          marker.screenshotUrl || getYouTubeThumbnailUrl(videoUrl) || "",
+          marker.screenshotUrl || getYouTubeThumbnailUrl(canonicalVideoUrl) || "",
         ].filter(Boolean),
       },
     }
@@ -69,9 +70,9 @@ export default async function VideoDetailPage({
   const { rows } = await query<MarkerRow>(
     `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
      FROM explorer_markers
-     WHERE video_url = $1
+     WHERE video_url ILIKE $1
      ORDER BY created_at ASC`,
-    [videoUrl]
+    [`%${videoId}%`]
   )
 
   if (rows.length === 0) {
@@ -79,9 +80,10 @@ export default async function VideoDetailPage({
   }
 
   const markers = rows.map(mapMarkerRow)
+  const canonicalVideoUrl = markers[0]?.videoUrl || videoUrl
 
   // Find nearby videos
-  const nearbyVideos = await findNearbyVideos(markers, videoUrl)
+  const nearbyVideos = await findNearbyVideos(markers, canonicalVideoUrl)
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
