@@ -158,7 +158,7 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
           }}
         >
           <Popup className="rounded-lg">
-            <div className="text-sm">
+            <div className="min-w-[280px] text-sm">
               <p className="text-xs uppercase tracking-[0.08em] text-slate-500 leading-tight">
                 {marker.creator}
               </p>
