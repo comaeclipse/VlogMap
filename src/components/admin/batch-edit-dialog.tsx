@@ -68,7 +68,14 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEdit
         <div className="space-y-4">
           {edits.map((edit, index) => (
             <div key={edit.id} className="border rounded-lg p-4 bg-slate-900/40">
-              <p className="font-medium mb-3 text-sm text-slate-300">Location {index + 1}</p>
+              <div className="flex items-baseline gap-2 mb-3">
+                <p className="font-medium text-sm text-slate-300">Location {index + 1}</p>
+                {video && video.locations[index]?.locationId && (
+                  <span className="font-mono text-xs text-slate-500">
+                    #{video.locations[index].locationId}
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor={`lat-${edit.id}`} className="text-xs">Latitude</Label>

@@ -31,6 +31,8 @@ type LocationEdit = {
   description: string
   city: string
   screenshotUrl: string
+  locationId?: string | null
+  locationName?: string | null
 }
 
 export default function EditVideoPage({
@@ -84,17 +86,44 @@ export default function EditVideoPage({
       summary: first.summary ?? "",
     })
 
-    // Set locations
-    setLocations(
-      matchingMarkers.map((m) => ({
-        id: m.id,
-        latitude: m.latitude,
-        longitude: m.longitude,
-        description: m.description ?? "",
-        city: m.city ?? "",
-        screenshotUrl: m.screenshotUrl ?? "",
-      }))
-    )
+    // Set locations (will fetch names separately)
+    const locationEdits = matchingMarkers.map((m) => ({
+      id: m.id,
+      latitude: m.latitude,
+      longitude: m.longitude,
+      description: m.description ?? "",
+      city: m.city ?? "",
+      screenshotUrl: m.screenshotUrl ?? "",
+      locationId: m.locationId,
+      locationName: null as string | null,
+    }))
+
+    setLocations(locationEdits)
+
+    // Fetch location names for markers that have locationIds
+    const fetchLocationNames = async () => {
+      const updatedLocations = await Promise.all(
+        locationEdits.map(async (loc) => {
+          if (!loc.locationId) return loc
+          
+          try {
+            const res = await fetch(`/api/locations/${loc.locationId}`, {
+              credentials: "include",
+            })
+            if (res.ok) {
+              const data = await res.json()
+              return { ...loc, locationName: data.name || data.city || null }
+            }
+          } catch (error) {
+            console.error("Failed to fetch location name:", error)
+          }
+          return loc
+        })
+      )
+      setLocations(updatedLocations)
+    }
+
+    fetchLocationNames()
   }, [allMarkers, videoId])
 
   useEffect(() => {
@@ -303,6 +332,11 @@ export default function EditVideoPage({
             >
               <h3 className="mb-4 text-base font-semibold">
                 Location {index + 1}
+                {location.locationName && (
+                  <span className="ml-2 text-sm font-normal text-slate-400">
+                    · {location.locationName}
+                  </span>
+                )}
               </h3>
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">

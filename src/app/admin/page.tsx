@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, LogOut, Pencil, Plus, RefreshCw, Trash2, MapPin } from "lucide-react"
+import { ArrowLeft, LogOut, Pencil, Plus, RefreshCw, Trash2, MapPin, Map } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -406,6 +406,17 @@ export default function AdminPage() {
             <span className="text-sm text-slate-400">
               {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
             </span>
+            <Link href="/admin/locations">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-2"
+                title="Manage location names"
+              >
+                <Map className="h-4 w-4" />
+                Locations
+              </Button>
+            </Link>
             <Button 
               variant="ghost" 
               size="sm" 

@@ -81,7 +81,14 @@ export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation 
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">Location {index + 1}</p>
+                  <p className="text-sm font-medium text-white">
+                    Location {index + 1}
+                    {location.locationId && (
+                      <span className="ml-1 font-mono text-xs text-slate-500">
+                        #{location.locationId}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-slate-400 mt-1">
                     {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
                     {location.city && ` · ${location.city}`}

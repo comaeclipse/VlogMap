@@ -6,12 +6,14 @@ import { VideoThumbnail } from "@/components/video-thumbnail"
 
 interface LocationVideosSectionProps {
   locationId: string
+  locationName?: string | null
   videos: VideoGroup[]
   currentVideoUrl: string
 }
 
 export function LocationVideosSection({
   locationId,
+  locationName,
   videos,
   currentVideoUrl,
 }: LocationVideosSectionProps) {
@@ -28,14 +30,17 @@ export function LocationVideosSection({
         <div className="mb-6 flex items-baseline justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-slate-50">
-              Other Videos at This Location
+              {locationName ? `Other Videos at ${locationName}` : "Other Videos at This Location"}
             </h2>
             <p className="mt-1 text-sm text-slate-400">
               {otherVideos.length} other video
               {otherVideos.length !== 1 ? "s" : ""} filmed at the same spot
-              <span className="ml-2 font-mono text-xs text-blue-400">
+              <Link 
+                href={`/location/${locationId}`}
+                className="ml-2 font-mono text-xs text-blue-400 hover:text-blue-300"
+              >
                 #{locationId}
-              </span>
+              </Link>
             </p>
           </div>
         </div>

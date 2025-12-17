@@ -87,12 +87,25 @@ export default async function VideoDetailPage({
   // Get location ID from first marker
   const locationId = markers[0]?.locationId
 
-  // Fetch videos at the same location
+  // Fetch videos at the same location and location details
   let locationVideos: VideoGroup[] = []
+  let locationName: string | null = null
   if (locationId) {
     try {
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+      
+      // Fetch location details
+      const locationDetailsRes = await fetch(
+        `${baseUrl}/api/locations/${locationId}`,
+        { cache: "no-store" },
+      )
+      if (locationDetailsRes.ok) {
+        const locationData = await locationDetailsRes.json()
+        locationName = locationData.name || locationData.city || null
+      }
+
+      // Fetch videos at location
       const locationRes = await fetch(
         `${baseUrl}/api/locations/${locationId}/videos`,
         { cache: "no-store" },
@@ -102,7 +115,7 @@ export default async function VideoDetailPage({
         locationVideos = data.videos || []
       }
     } catch (error) {
-      console.error("Failed to fetch location videos:", error)
+      console.error("Failed to fetch location data:", error)
     }
   }
 
@@ -154,6 +167,7 @@ export default async function VideoDetailPage({
         {locationId && locationVideos.length > 0 && (
           <LocationVideosSection
             locationId={locationId}
+            locationName={locationName}
             videos={locationVideos}
             currentVideoUrl={canonicalVideoUrl}
           />

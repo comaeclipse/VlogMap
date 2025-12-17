@@ -52,10 +52,12 @@ export default async function LocationDetailPage({
     latitude: number
     longitude: number
     city: string | null
+    district: string | null
+    country: string | null
     name: string | null
     created_at: string
   }>(
-    `SELECT id, latitude, longitude, city, name, created_at
+    `SELECT id, latitude, longitude, city, district, country, name, created_at
      FROM locations
      WHERE id = $1`,
     [locationId],
@@ -110,9 +112,14 @@ export default async function LocationDetailPage({
             <span className="font-mono">{locationId}</span>
           </div>
           <h1 className="text-4xl font-bold">
-            {data.name || data.city || "Unknown Location"}
+            {data.name || data.city || "Unnamed Location"}
           </h1>
-          <p className="mt-2 text-slate-400">
+          {(data.city || data.district || data.country) && (
+            <p className="mt-2 text-lg text-slate-300">
+              {[data.city, data.district, data.country].filter(Boolean).join(", ")}
+            </p>
+          )}
+          <p className="mt-1 text-sm text-slate-500">
             {data.latitude.toFixed(6)}, {data.longitude.toFixed(6)}
           </p>
         </div>
