@@ -34,13 +34,14 @@ export async function PUT(
     const body = await request.json()
     const payload = markerSchema.parse(body)
 
-    // Get old location_id and coordinates before update
+    // Get old location_id, coordinates, and type before update
     const { rows: oldRows } = await query<{
       location_id: string | null
       latitude: number
       longitude: number
+      type: string | null
     }>(
-      "SELECT location_id, latitude, longitude FROM explorer_markers WHERE id = $1",
+      "SELECT location_id, latitude, longitude, type FROM explorer_markers WHERE id = $1",
       [id],
     )
 
@@ -51,6 +52,45 @@ export async function PUT(
     const oldLocationId = oldRows[0].location_id
     const oldLatitude = oldRows[0].latitude
     const oldLongitude = oldRows[0].longitude
+    const oldType = oldRows[0].type
+
+    // Validate parent_city_id if provided
+    if (payload.parentCityId) {
+      // Prevent self-reference
+      if (payload.parentCityId === id) {
+        return NextResponse.json(
+          { error: "A marker cannot be its own parent" },
+          { status: 400 }
+        )
+      }
+
+      const { rows: parentRows } = await query<{ type: string | null }>(
+        `SELECT type FROM explorer_markers WHERE id = $1`,
+        [payload.parentCityId]
+      )
+      
+      if (parentRows.length === 0) {
+        return NextResponse.json(
+          { error: "Parent city marker not found" },
+          { status: 400 }
+        )
+      }
+      
+      if (parentRows[0].type !== 'city') {
+        return NextResponse.json(
+          { error: "Parent marker must be of type 'city'" },
+          { status: 400 }
+        )
+      }
+    }
+
+    // If type is changing from 'city' to something else, orphan child landmarks
+    if (oldType === 'city' && payload.type !== 'city') {
+      await query(
+        `UPDATE explorer_markers SET parent_city_id = NULL WHERE parent_city_id = $1`,
+        [id]
+      )
+    }
 
     // Check if coordinates changed significantly (more than 200m ~ 0.002 degrees)
     const coordinatesChanged =
@@ -73,9 +113,11 @@ export async function PUT(
             country = $10,
             video_published_at = $11,
             screenshot_url = $12,
-            summary = $13
-        WHERE id = $14
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
+            summary = $13,
+            type = $14,
+            parent_city_id = $15
+        WHERE id = $16
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
       `,
       [
         payload.title,
@@ -93,6 +135,8 @@ export async function PUT(
           : null,
         payload.screenshotUrl ?? null,
         payload.summary ?? null,
+        payload.type ?? null,
+        payload.parentCityId ?? null,
         id,
       ],
     )
@@ -117,7 +161,7 @@ export async function PUT(
 
         // Fetch updated marker with new location_id
         const { rows: updatedRows } = await query<MarkerRow>(
-          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
+          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
            FROM explorer_markers WHERE id = $1`,
           [id],
         )

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/sonner"
 import {
   Select,
@@ -55,6 +56,8 @@ const emptyMarker: MarkerInput = {
   district: "",
   country: "",
   videoPublishedAt: "",
+  type: undefined,
+  parentCityId: undefined,
 }
 
 export default function AdminPage() {
@@ -97,6 +100,18 @@ export default function AdminPage() {
     if (selectedCreator === "all") return uncategorized
     return uncategorized.filter(marker => marker.creator === selectedCreator)
   }, [uncategorized, selectedCreator])
+
+  // Get all city markers for parent city dropdown
+  const cityMarkers = useMemo(() => {
+    return (data || [])
+      .filter((m) => m.type === 'city')
+      .sort((a, b) => {
+        // Sort by creator, then title
+        const creatorCompare = a.creator.localeCompare(b.creator)
+        if (creatorCompare !== 0) return creatorCompare
+        return a.title.localeCompare(b.title)
+      })
+  }, [data])
 
   useEffect(() => {
     if (!authLoading && authData && !authData.authenticated) {
@@ -234,6 +249,8 @@ export default function AdminPage() {
       city: "",
       district: "",
       country: "",
+      type: undefined,
+      parentCityId: undefined,
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -252,6 +269,8 @@ export default function AdminPage() {
       district: marker.district ?? "",
       country: marker.country ?? "",
       videoPublishedAt: marker.videoPublishedAt ?? "",
+      type: marker.type,
+      parentCityId: marker.parentCityId,
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -275,6 +294,8 @@ export default function AdminPage() {
       district: marker.district ?? "",
       country: marker.country ?? "",
       videoPublishedAt: marker.videoPublishedAt ?? "",
+      type: marker.type,
+      parentCityId: marker.parentCityId,
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -289,6 +310,8 @@ export default function AdminPage() {
       district: "",
       country: "",
       description: "",
+      type: undefined,
+      parentCityId: undefined,
     }))
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -548,13 +571,26 @@ export default function AdminPage() {
                       className="flex flex-col gap-2 rounded-md border border-white/10 bg-slate-800/60 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="space-y-1 text-sm text-slate-200">
-                        <p className="font-medium">
-                          {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
-                          {m.city ? ` · ${m.city}` : ""}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium">
+                            {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
+                            {m.city ? ` · ${m.city}` : ""}
+                          </p>
+                          {m.type === 'city' && (
+                            <Badge variant="secondary" className="text-xs">City</Badge>
+                          )}
+                          {m.type === 'landmark' && (
+                            <Badge variant="default" className="text-xs">Landmark</Badge>
+                          )}
+                        </div>
                         {m.locationId && (
                           <p className="text-xs text-blue-400 font-mono">
                             📍 {m.locationId}
+                          </p>
+                        )}
+                        {m.parentCityName && (
+                          <p className="text-xs text-slate-500">
+                            Parent: {m.parentCityName}
                           </p>
                         )}
                         {m.description ? (
@@ -656,6 +692,62 @@ export default function AdminPage() {
                 onChange={(e) => setForm({ ...form, country: e.target.value })}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Location Type</Label>
+              <Select
+                value={form.type || "unspecified"}
+                onValueChange={(value) => {
+                  const newType = value === "unspecified" ? undefined : (value as 'city' | 'landmark')
+                  setForm({ 
+                    ...form, 
+                    type: newType,
+                    // Clear parent city if changing to city or unspecified
+                    parentCityId: newType === 'landmark' ? form.parentCityId : undefined
+                  })
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Unspecified</SelectItem>
+                  <SelectItem value="city">City</SelectItem>
+                  <SelectItem value="landmark">Landmark</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500">
+                City: general exploration; Landmark: specific attraction
+              </p>
+            </div>
+            {form.type === 'landmark' && (
+              <div className="space-y-2">
+                <Label htmlFor="parentCity">Parent City (Optional)</Label>
+                <Select
+                  value={form.parentCityId?.toString() || "none"}
+                  onValueChange={(value) => {
+                    setForm({ 
+                      ...form, 
+                      parentCityId: value === "none" ? undefined : Number(value)
+                    })
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select parent city" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="none">No parent city</SelectItem>
+                    {cityMarkers.map((city) => (
+                      <SelectItem key={city.id} value={city.id.toString()}>
+                        {city.creator} - {city.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Associate this landmark with a parent city
+                </p>
+              </div>
+            )}
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -768,6 +860,7 @@ export default function AdminPage() {
           open={batchDialogOpen}
           onOpenChange={setBatchDialogOpen}
           onSave={handleBatchSave}
+          cityMarkers={cityMarkers}
         />
       </main>
     </div>

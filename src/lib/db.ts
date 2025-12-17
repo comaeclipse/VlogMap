@@ -17,6 +17,8 @@ export type MarkerRow = {
   screenshot_url: string | null
   summary: string | null
   location_id: string | null
+  type: string | null
+  parent_city_id: number | null
   created_at: string
 }
 
@@ -151,6 +153,35 @@ async function ensureSchema() {
           ALTER TABLE explorer_markers
           ADD COLUMN IF NOT EXISTS country TEXT
         `)
+
+        // Add type and parent_city_id columns to explorer_markers table
+        await getPool().query(`
+          ALTER TABLE explorer_markers
+          ADD COLUMN IF NOT EXISTS type VARCHAR(20)
+        `)
+        await getPool().query(`
+          ALTER TABLE explorer_markers
+          ADD COLUMN IF NOT EXISTS parent_city_id INTEGER
+        `)
+
+        // Add foreign key constraint for parent_city_id (will fail silently if already exists)
+        try {
+          await getPool().query(`
+            ALTER TABLE explorer_markers
+            ADD CONSTRAINT fk_parent_city_id
+            FOREIGN KEY (parent_city_id)
+            REFERENCES explorer_markers(id)
+            ON DELETE SET NULL
+          `)
+        } catch (fkErr: unknown) {
+          // Constraint already exists, ignore
+        }
+
+        // Add type column to locations table
+        await getPool().query(`
+          ALTER TABLE locations
+          ADD COLUMN IF NOT EXISTS type VARCHAR(20)
+        `)
       } catch (err: unknown) {
         // Ignore duplicate type error (23505 on pg_type) - table already exists
         const pgErr = err as { code?: string; table?: string }
@@ -192,6 +223,8 @@ export function mapMarkerRow(row: MarkerRow) {
     screenshotUrl: row.screenshot_url,
     summary: row.summary,
     locationId: row.location_id,
+    type: row.type as 'city' | 'landmark' | null,
+    parentCityId: row.parent_city_id,
     createdAt: row.created_at,
   }
 }

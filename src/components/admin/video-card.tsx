@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { extractYouTubeId } from "@/lib/youtube"
 import type { VideoGroup } from "@/types/markers"
 
@@ -81,18 +82,31 @@ export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation 
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">
-                    Location {index + 1}
-                    {location.locationId && (
-                      <span className="ml-1 font-mono text-xs text-slate-500">
-                        #{location.locationId}
-                      </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-white">
+                      Location {index + 1}
+                      {location.locationId && (
+                        <span className="ml-1 font-mono text-xs text-slate-500">
+                          #{location.locationId}
+                        </span>
+                      )}
+                    </p>
+                    {location.type === 'city' && (
+                      <Badge variant="secondary" className="text-xs">City</Badge>
                     )}
-                  </p>
+                    {location.type === 'landmark' && (
+                      <Badge variant="default" className="text-xs">Landmark</Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-400 mt-1">
                     {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
                     {location.city && ` · ${location.city}`}
                   </p>
+                  {location.parentCityName && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Parent: {location.parentCityName}
+                    </p>
+                  )}
                   {location.description && (
                     <p className="text-xs text-slate-500 mt-1 truncate">{location.description}</p>
                   )}

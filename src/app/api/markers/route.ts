@@ -6,7 +6,10 @@ import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
 import { assignLocationToMarker } from "@/lib/location-matching"
 
-type MarkerWithLocation = MarkerRow & { location_name: string | null }
+type MarkerWithLocation = MarkerRow & { 
+  location_name: string | null
+  parent_city_name: string | null
+}
 
 export async function GET(request: NextRequest) {
   const videoUrl = request.nextUrl.searchParams.get("videoUrl")
@@ -17,10 +20,13 @@ export async function GET(request: NextRequest) {
       SELECT 
         m.id, m.title, m.creator, m.channel_url, m.video_url, m.description, 
         m.latitude, m.longitude, m.city, m.district, m.country, 
-        m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.created_at,
-        l.name as location_name
+        m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
+        m.type, m.parent_city_id, m.created_at,
+        l.name as location_name,
+        p.title as parent_city_name
       FROM explorer_markers m
       LEFT JOIN locations l ON m.location_id = l.id
+      LEFT JOIN explorer_markers p ON m.parent_city_id = p.id
       ${videoUrl ? "WHERE m.video_url = $1" : ""}
       ORDER BY m.created_at DESC
     `,
@@ -29,6 +35,7 @@ export async function GET(request: NextRequest) {
     const markers = rows.map((row) => ({
       ...mapMarkerRow(row),
       locationName: row.location_name,
+      parentCityName: row.parent_city_name,
     }))
     return NextResponse.json(markers)
   } catch (error) {
@@ -48,12 +55,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const payload = markerSchema.parse(body)
 
+    // Validate parent_city_id if provided
+    if (payload.parentCityId) {
+      const { rows: parentRows } = await query<{ type: string | null }>(
+        `SELECT type FROM explorer_markers WHERE id = $1`,
+        [payload.parentCityId]
+      )
+      
+      if (parentRows.length === 0) {
+        return NextResponse.json(
+          { error: "Parent city marker not found" },
+          { status: 400 }
+        )
+      }
+      
+      if (parentRows[0].type !== 'city') {
+        return NextResponse.json(
+          { error: "Parent marker must be of type 'city'" },
+          { status: 400 }
+        )
+      }
+    }
+
     const { rows } = await query<MarkerRow>(
       `
         INSERT INTO explorer_markers
-          (title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
+          (title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, type, parent_city_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
       `,
       [
         payload.title,
@@ -71,6 +100,8 @@ export async function POST(request: NextRequest) {
           : null,
         payload.screenshotUrl ?? null,
         payload.summary ?? null,
+        payload.type ?? null,
+        payload.parentCityId ?? null,
       ],
     )
 
@@ -89,7 +120,7 @@ export async function POST(request: NextRequest) {
 
       // Fetch updated marker with location_id
       const { rows: updatedRows } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
          FROM explorer_markers WHERE id = $1`,
         [marker.id],
       )

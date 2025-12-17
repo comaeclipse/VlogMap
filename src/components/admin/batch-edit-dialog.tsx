@@ -1,11 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -14,16 +21,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { VideoGroup, LocationEdit } from "@/types/markers"
+import type { VideoGroup, LocationEdit, Marker } from "@/types/markers"
 
 type BatchEditDialogProps = {
   video: VideoGroup | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (updates: LocationEdit[]) => Promise<void>
+  cityMarkers?: Marker[]
 }
 
-export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEditDialogProps) {
+export function BatchEditDialog({ video, open, onOpenChange, onSave, cityMarkers = [] }: BatchEditDialogProps) {
   const [edits, setEdits] = useState<LocationEdit[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
@@ -35,6 +43,8 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEdit
         longitude: loc.longitude,
         description: loc.description || '',
         city: loc.city || '',
+        type: loc.type,
+        parentCityId: loc.parentCityId,
       })))
     }
   }, [video])
@@ -49,7 +59,7 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEdit
     }
   }
 
-  const updateEdit = (index: number, field: keyof LocationEdit, value: string | number) => {
+  const updateEdit = (index: number, field: keyof LocationEdit, value: string | number | null | undefined) => {
     const updated = [...edits]
     updated[index] = { ...updated[index], [field]: value }
     setEdits(updated)
@@ -105,6 +115,52 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEdit
                     onChange={(e) => updateEdit(index, 'city', e.target.value)}
                   />
                 </div>
+                <div>
+                  <Label htmlFor={`type-${edit.id}`} className="text-xs">Type</Label>
+                  <Select
+                    value={edit.type || "unspecified"}
+                    onValueChange={(value) => {
+                      const newType = value === "unspecified" ? undefined : (value as 'city' | 'landmark')
+                      updateEdit(index, 'type', newType)
+                      // Clear parent city if changing to city or unspecified
+                      if (newType !== 'landmark') {
+                        updateEdit(index, 'parentCityId', undefined)
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unspecified">Unspecified</SelectItem>
+                      <SelectItem value="city">City</SelectItem>
+                      <SelectItem value="landmark">Landmark</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {edit.type === 'landmark' && (
+                  <div>
+                    <Label htmlFor={`parent-${edit.id}`} className="text-xs">Parent City</Label>
+                    <Select
+                      value={edit.parentCityId?.toString() || "none"}
+                      onValueChange={(value) => {
+                        updateEdit(index, 'parentCityId', value === "none" ? undefined : Number(value))
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px]">
+                        <SelectItem value="none">No parent</SelectItem>
+                        {cityMarkers.map((city) => (
+                          <SelectItem key={city.id} value={city.id.toString()}>
+                            {city.creator} - {city.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <Label htmlFor={`desc-${edit.id}`} className="text-xs">Description</Label>
                   <Textarea
