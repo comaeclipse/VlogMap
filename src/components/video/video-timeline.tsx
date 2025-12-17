@@ -1,6 +1,7 @@
 "use client"
 
-import { MapPin, Clock } from "lucide-react"
+import Link from "next/link"
+import { MapPin, Clock, Landmark } from "lucide-react"
 import type { Marker } from "@/types/markers"
 import { Badge } from "@/components/ui/badge"
 
@@ -78,19 +79,45 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       )}
                     </div>
                     
-                    {marker.locationName && (
-                      <h3 className="mt-1 text-lg font-semibold text-white">
-                        {marker.locationName}
-                      </h3>
+                    {marker.locationName && marker.type === 'landmark' && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <Landmark className="h-4 w-4 text-amber-400" />
+                        {marker.locationId ? (
+                          <Link
+                            href={`/location/${marker.locationId}`}
+                            className="text-lg font-semibold text-white hover:text-amber-300 transition-colors"
+                          >
+                            {marker.locationName}
+                          </Link>
+                        ) : (
+                          <h3 className="text-lg font-semibold text-white">
+                            {marker.locationName}
+                          </h3>
+                        )}
+                      </div>
                     )}
-                    
+
                     <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
                       <MapPin className="h-3 w-3" />
-                      <span>
-                        {[marker.city, marker.district, marker.country]
+                      {(() => {
+                        const cityLinkId = marker.type === 'landmark' && marker.parentCityId
+                          ? marker.parentCityId
+                          : marker.locationId
+                        const cityText = [marker.city, marker.district, marker.country]
                           .filter(Boolean)
-                          .join(", ") || "Location"}
-                      </span>
+                          .join(", ") || "Location"
+
+                        return cityLinkId ? (
+                          <Link
+                            href={`/location/${cityLinkId}`}
+                            className="hover:text-slate-200 transition-colors"
+                          >
+                            {cityText}
+                          </Link>
+                        ) : (
+                          <span>{cityText}</span>
+                        )
+                      })()}
                     </div>
 
                     {marker.description && (
