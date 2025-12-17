@@ -42,6 +42,7 @@ type LocationEdit = {
   locationName?: string | null
   type?: 'city' | 'landmark' | null
   parentCityId?: number | null
+  timestamp?: string | null
 }
 
 export default function EditVideoPage({
@@ -108,6 +109,7 @@ export default function EditVideoPage({
         locationName: m.locationName ?? null,
         type: m.type,
         parentCityId: m.parentCityId,
+        timestamp: m.timestamp ?? "",
       }))
     )
   }, [allMarkers, videoId])
@@ -166,6 +168,21 @@ export default function EditVideoPage({
   // Get city markers for parent dropdown
   const cityMarkers = allMarkers?.filter((m) => m.type === 'city') || []
 
+  // Convert timestamp string to seconds for sorting
+  const timestampToSeconds = (timestamp: string | null | undefined): number => {
+    if (!timestamp) return Infinity // Items without timestamp go to the end
+    
+    const parts = timestamp.split(":").map(Number)
+    if (parts.length === 2) {
+      // mm:ss format
+      return parts[0] * 60 + parts[1]
+    } else if (parts.length === 3) {
+      // hh:mm:ss format
+      return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    }
+    return Infinity
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -183,13 +200,18 @@ export default function EditVideoPage({
         throw new Error("Video info not loaded")
       }
 
+      // Sort locations by timestamp before saving
+      const sortedLocations = [...locations].sort((a, b) => {
+        return timestampToSeconds(a.timestamp) - timestampToSeconds(b.timestamp)
+      })
+
       const res = await fetch("/api/markers/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           videoUrl,
-          updates: locations,
+          updates: sortedLocations,
           videoMetadata: {
             title: videoInfo.title,
             creator: videoInfo.creator,
@@ -206,7 +228,7 @@ export default function EditVideoPage({
       }
 
       await mutate()
-      toast.success("Changes saved")
+      toast.success("Changes saved and sorted by timestamp")
       router.push("/admin")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed")
@@ -387,6 +409,23 @@ export default function EditVideoPage({
                         <SelectItem value="landmark">Landmark</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor={`timestamp-${location.id}`}>
+                      Timestamp
+                      <span className="ml-1 text-xs font-normal text-slate-400">
+                        (hh:mm:ss or mm:ss)
+                      </span>
+                    </Label>
+                    <Input
+                      id={`timestamp-${location.id}`}
+                      value={location.timestamp || ""}
+                      onChange={(e) =>
+                        updateLocation(location.id, "timestamp", e.target.value)
+                      }
+                      placeholder="0:00"
+                      pattern="^(\d{1,2}:)?\d{1,2}:\d{2}$"
+                    />
                   </div>
                   {location.type === 'landmark' && (
                     <div className="sm:col-span-2">

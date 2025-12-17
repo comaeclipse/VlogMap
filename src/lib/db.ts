@@ -19,6 +19,7 @@ export type MarkerRow = {
   location_id: string | null
   type: string | null
   parent_city_id: number | null
+  timestamp: string | null
   created_at: string
 }
 
@@ -182,6 +183,12 @@ async function ensureSchema() {
           ALTER TABLE locations
           ADD COLUMN IF NOT EXISTS type VARCHAR(20)
         `)
+
+        // Add timestamp column to explorer_markers table
+        await getPool().query(`
+          ALTER TABLE explorer_markers
+          ADD COLUMN IF NOT EXISTS timestamp VARCHAR(8)
+        `)
       } catch (err: unknown) {
         // Ignore duplicate type error (23505 on pg_type) - table already exists
         const pgErr = err as { code?: string; table?: string }
@@ -225,6 +232,7 @@ export function mapMarkerRow(row: MarkerRow) {
     locationId: row.location_id,
     type: row.type as 'city' | 'landmark' | null,
     parentCityId: row.parent_city_id,
+    timestamp: row.timestamp,
     createdAt: row.created_at,
   }
 }

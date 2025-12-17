@@ -18,6 +18,7 @@ export type Marker = {
   type?: 'city' | 'landmark' | null
   parentCityId?: number | null
   parentCityName?: string | null
+  timestamp?: string | null
   createdAt?: string
 }
 
@@ -42,6 +43,7 @@ export type LocationEdit = {
   screenshotUrl?: string
   type?: 'city' | 'landmark' | null
   parentCityId?: number | null
+  timestamp?: string | null
 }
 
 export type BatchUpdatePayload = {

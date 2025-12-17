@@ -75,15 +75,18 @@ export async function POST(request: NextRequest) {
         // Update the marker
         const { rows } = await query<MarkerRow>(
           `UPDATE explorer_markers
-           SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5
-           WHERE id = $6
-           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at`,
+           SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5, type = $6, parent_city_id = $7, timestamp = $8
+           WHERE id = $9
+           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at`,
           [
             update.latitude,
             update.longitude,
             update.description ?? null,
             update.city ?? null,
             update.screenshotUrl ?? null,
+            update.type ?? null,
+            update.parentCityId ?? null,
+            update.timestamp ?? null,
             update.id,
           ],
         )
@@ -121,7 +124,7 @@ export async function POST(request: NextRequest) {
       const markerIds = updatedMarkers.map((m) => m.id)
       const placeholders = markerIds.map((_, i) => `$${i + 1}`).join(", ")
       const { rows: finalMarkers } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
          FROM explorer_markers
          WHERE id IN (${placeholders})`,
         markerIds,

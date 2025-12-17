@@ -115,9 +115,10 @@ export async function PUT(
             screenshot_url = $12,
             summary = $13,
             type = $14,
-            parent_city_id = $15
-        WHERE id = $16
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
+            parent_city_id = $15,
+            timestamp = $16
+        WHERE id = $17
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
       `,
       [
         payload.title,
@@ -137,6 +138,7 @@ export async function PUT(
         payload.summary ?? null,
         payload.type ?? null,
         payload.parentCityId ?? null,
+        payload.timestamp ?? null,
         id,
       ],
     )
@@ -161,7 +163,7 @@ export async function PUT(
 
         // Fetch updated marker with new location_id
         const { rows: updatedRows } = await query<MarkerRow>(
-          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
+          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
            FROM explorer_markers WHERE id = $1`,
           [id],
         )

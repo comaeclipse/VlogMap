@@ -14,6 +14,7 @@ import { PhotoGallery } from "@/components/video/photo-gallery"
 import { VideoSummarySection } from "@/components/video/video-summary-section"
 import { NearbyVideosSection } from "@/components/video/nearby-videos-section"
 import { LocationVideosSection } from "@/components/video/location-videos-section"
+import { VideoTimeline } from "@/components/video/video-timeline"
 import { Button } from "@/components/ui/button"
 import type { VideoGroup } from "@/types/markers"
 
@@ -165,6 +166,9 @@ export default async function VideoDetailPage({
             </div>
           </div>
         </div>
+
+        {/* Timeline Section */}
+        <VideoTimeline markers={markers} videoUrl={canonicalVideoUrl} />
 
         {locationId && locationVideos.length > 0 && (
           <LocationVideosSection

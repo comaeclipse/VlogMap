@@ -71,7 +71,7 @@ export default async function LocationDetailPage({
 
   // Fetch all markers at this location
   const { rows: markerRows } = await query<MarkerRow>(
-    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, created_at
+    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
      FROM explorer_markers
      WHERE location_id = $1
      ORDER BY created_at DESC`,

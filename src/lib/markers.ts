@@ -19,6 +19,7 @@ export const markerSchema = z.object({
   summary: z.string().max(10000).optional().or(z.literal("").transform(() => undefined)),
   type: z.enum(['city', 'landmark']).optional().or(z.literal("").transform(() => undefined)),
   parentCityId: z.coerce.number().int().positive().optional().nullable().or(z.literal("").transform(() => undefined)),
+  timestamp: z.string().regex(/^(\d{1,2}:)?\d{1,2}:\d{2}$/).optional().or(z.literal("").transform(() => undefined)),
 })
 
 export type MarkerPayload = z.infer<typeof markerSchema>
@@ -34,6 +35,7 @@ export const locationUpdateSchema = z.object({
   locationName: z.string().max(200).optional().nullable().or(z.literal("").transform(() => undefined)),
   type: z.enum(['city', 'landmark']).optional().nullable().or(z.literal("").transform(() => undefined)),
   parentCityId: z.coerce.number().int().positive().optional().nullable().or(z.literal("").transform(() => undefined)),
+  timestamp: z.string().regex(/^(\d{1,2}:)?\d{1,2}:\d{2}$/).optional().nullable().or(z.literal("").transform(() => undefined)),
 })
 
 export const videoMetadataSchema = z.object({
