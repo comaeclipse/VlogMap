@@ -89,6 +89,14 @@ export async function POST(request: NextRequest) {
         )
 
         updatedMarkers.push(rows[0])
+
+        // Update location name if provided and marker has a locationId
+        if (update.locationName !== undefined && update.locationId) {
+          await query(
+            `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
+            [update.locationName || null, update.locationId]
+          )
+        }
       }
 
       // Reassign location IDs for all updated markers

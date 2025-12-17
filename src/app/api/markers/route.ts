@@ -6,20 +6,30 @@ import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
 import { assignLocationToMarker } from "@/lib/location-matching"
 
+type MarkerWithLocation = MarkerRow & { location_name: string | null }
+
 export async function GET(request: NextRequest) {
   const videoUrl = request.nextUrl.searchParams.get("videoUrl")
 
   try {
-    const { rows } = await query<MarkerRow>(
+    const { rows } = await query<MarkerWithLocation>(
       `
-      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
-      FROM explorer_markers
-      ${videoUrl ? "WHERE video_url = $1" : ""}
-      ORDER BY created_at DESC
+      SELECT 
+        m.id, m.title, m.creator, m.channel_url, m.video_url, m.description, 
+        m.latitude, m.longitude, m.city, m.district, m.country, 
+        m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.created_at,
+        l.name as location_name
+      FROM explorer_markers m
+      LEFT JOIN locations l ON m.location_id = l.id
+      ${videoUrl ? "WHERE m.video_url = $1" : ""}
+      ORDER BY m.created_at DESC
     `,
       videoUrl ? [videoUrl] : undefined,
     )
-    const markers = rows.map(mapMarkerRow)
+    const markers = rows.map((row) => ({
+      ...mapMarkerRow(row),
+      locationName: row.location_name,
+    }))
     return NextResponse.json(markers)
   } catch (error) {
     console.error("Failed to fetch markers", error)

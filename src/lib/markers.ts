@@ -28,6 +28,8 @@ export const locationUpdateSchema = z.object({
   description: z.string().max(500).optional().or(z.literal("").transform(() => undefined)),
   city: z.string().max(120).optional().or(z.literal("").transform(() => undefined)),
   screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  locationId: z.string().max(8).optional().nullable(),
+  locationName: z.string().max(200).optional().or(z.literal("").transform(() => undefined)),
 })
 
 export const videoMetadataSchema = z.object({

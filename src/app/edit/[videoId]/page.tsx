@@ -86,44 +86,19 @@ export default function EditVideoPage({
       summary: first.summary ?? "",
     })
 
-    // Set locations (will fetch names separately)
-    const locationEdits = matchingMarkers.map((m) => ({
-      id: m.id,
-      latitude: m.latitude,
-      longitude: m.longitude,
-      description: m.description ?? "",
-      city: m.city ?? "",
-      screenshotUrl: m.screenshotUrl ?? "",
-      locationId: m.locationId,
-      locationName: null as string | null,
-    }))
-
-    setLocations(locationEdits)
-
-    // Fetch location names for markers that have locationIds
-    const fetchLocationNames = async () => {
-      const updatedLocations = await Promise.all(
-        locationEdits.map(async (loc) => {
-          if (!loc.locationId) return loc
-          
-          try {
-            const res = await fetch(`/api/locations/${loc.locationId}`, {
-              credentials: "include",
-            })
-            if (res.ok) {
-              const data = await res.json()
-              return { ...loc, locationName: data.name || data.city || null }
-            }
-          } catch (error) {
-            console.error("Failed to fetch location name:", error)
-          }
-          return loc
-        })
-      )
-      setLocations(updatedLocations)
-    }
-
-    fetchLocationNames()
+    // Set locations (locationName now comes from the markers API)
+    setLocations(
+      matchingMarkers.map((m) => ({
+        id: m.id,
+        latitude: m.latitude,
+        longitude: m.longitude,
+        description: m.description ?? "",
+        city: m.city ?? "",
+        screenshotUrl: m.screenshotUrl ?? "",
+        locationId: m.locationId,
+        locationName: m.locationName ?? null,
+      }))
+    )
   }, [allMarkers, videoId])
 
   useEffect(() => {
@@ -331,11 +306,13 @@ export default function EditVideoPage({
               className="rounded-xl border border-white/10 bg-slate-900/60 p-5"
             >
               <h3 className="mb-4 text-base font-semibold">
-                Location {index + 1}
-                {location.locationName && (
-                  <span className="ml-2 text-sm font-normal text-slate-400">
-                    · {location.locationName}
-                  </span>
+                {location.locationName ? (
+                  <>
+                    Location {index + 1}:{" "}
+                    <span className="text-blue-400">{location.locationName}</span>
+                  </>
+                ) : (
+                  `Location ${index + 1}`
                 )}
               </h3>
               <div className="space-y-4">
@@ -372,6 +349,22 @@ export default function EditVideoPage({
                       onChange={(e) =>
                         updateLocation(location.id, "city", e.target.value)
                       }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`name-${location.id}`}>
+                      Location Name
+                      <span className="ml-2 text-xs font-normal text-slate-400">
+                        (optional - e.g., "Lenin Statue", "Trinity Site")
+                      </span>
+                    </Label>
+                    <Input
+                      id={`name-${location.id}`}
+                      value={location.locationName || ""}
+                      onChange={(e) =>
+                        updateLocation(location.id, "locationName", e.target.value)
+                      }
+                      placeholder="Leave blank for generic locations"
                     />
                   </div>
                   <div className="sm:col-span-2">

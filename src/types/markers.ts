@@ -14,6 +14,7 @@ export type Marker = {
   screenshotUrl?: string | null
   summary?: string | null
   locationId?: string | null
+  locationName?: string | null
   createdAt?: string
 }
 
