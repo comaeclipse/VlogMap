@@ -1,12 +1,9 @@
-import { Metadata } from "next"
+"use client"
+
 import Link from "next/link"
+import useSWR from "swr"
 import { ArrowLeft, Globe2, MapPin, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-export const metadata: Metadata = {
-  title: "All Locations | VlogMap",
-  description: "Browse all filming locations on VlogMap",
-}
 
 type LocationWithStats = {
   id: string
@@ -19,25 +16,13 @@ type LocationWithStats = {
   videoCount: number
 }
 
-export default async function LocationsPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-  const response = await fetch(`${baseUrl}/api/locations`, {
-    cache: "no-store",
-  })
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-  if (!response.ok) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Failed to load locations</h1>
-          <p className="text-slate-400">Please try again later</p>
-        </div>
-      </div>
-    )
-  }
-
-  const data: { locations: LocationWithStats[]; totalCount: number } =
-    await response.json()
+export default function LocationsPage() {
+  const { data, error, isLoading } = useSWR<{
+    locations: LocationWithStats[]
+    totalCount: number
+  }>("/api/locations", fetcher)
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -61,13 +46,30 @@ export default async function LocationsPage() {
       <main className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-bold">All Locations</h1>
-          <p className="mt-2 text-slate-400">
-            Browse {data.totalCount} filming location
-            {data.totalCount !== 1 ? "s" : ""} from videos around the world
-          </p>
+          {isLoading ? (
+            <p className="mt-2 text-slate-400">Loading locations...</p>
+          ) : error ? (
+            <p className="mt-2 text-red-400">Failed to load locations</p>
+          ) : (
+            <p className="mt-2 text-slate-400">
+              Browse {data?.totalCount || 0} filming location
+              {data?.totalCount !== 1 ? "s" : ""} from videos around the world
+            </p>
+          )}
         </div>
 
-        {data.locations.length === 0 ? (
+        {isLoading ? (
+          <div className="rounded-lg border border-white/10 bg-slate-900/60 p-12 text-center">
+            <p className="text-slate-400">Loading locations...</p>
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-12 text-center">
+            <h2 className="text-xl font-semibold mb-2 text-red-300">
+              Failed to load locations
+            </h2>
+            <p className="text-red-400">Please try again later</p>
+          </div>
+        ) : !data || data.locations.length === 0 ? (
           <div className="rounded-lg border border-white/10 bg-slate-900/60 p-12 text-center">
             <MapPin className="mx-auto h-12 w-12 text-slate-600 mb-4" />
             <h2 className="text-xl font-semibold mb-2">No locations yet</h2>
