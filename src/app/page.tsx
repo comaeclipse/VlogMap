@@ -78,6 +78,12 @@ export default function Home() {
                 Creators
               </Button>
             </Link>
+            <Link href="/locations">
+              <Button variant="ghost" className="gap-2 text-slate-300 hover:text-white">
+                <MapPin className="h-4 w-4" />
+                Locations
+              </Button>
+            </Link>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-300">
             <Select value={selectedCreator} onValueChange={setSelectedCreator}>
