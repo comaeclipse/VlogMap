@@ -60,6 +60,28 @@ export default function EditVideoPage({
 
   const { data: allMarkers, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
 
+  // Helper to convert timestamp to seconds
+  const timestampToSeconds = (timestamp: string | null | undefined): number => {
+    if (!timestamp) return Infinity
+    const parts = timestamp.split(":").map(Number)
+    if (parts.length === 2) return parts[0] * 60 + parts[1]
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    return Infinity
+  }
+
+  // Sort markers by timestamp for display
+  const sortedAllMarkers = useMemo(() => {
+    if (!allMarkers) return []
+    return [...allMarkers].sort((a, b) => {
+      const timeA = timestampToSeconds(a.timestamp)
+      const timeB = timestampToSeconds(b.timestamp)
+      if (timeA === Infinity && timeB === Infinity) {
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+      }
+      return timeA - timeB
+    })
+  }, [allMarkers, timestampToSeconds])
+
   const [locations, setLocations] = useState<LocationEdit[]>([])
   const [videoInfo, setVideoInfo] = useState<{
     title: string
@@ -73,9 +95,9 @@ export default function EditVideoPage({
 
   // Filter markers by videoId
   useEffect(() => {
-    if (!allMarkers) return
+    if (!sortedAllMarkers) return
 
-    const matchingMarkers = allMarkers.filter((m) => {
+    const matchingMarkers = sortedAllMarkers.filter((m) => {
       if (!m.videoUrl) return false
       const urlVideoId = extractYouTubeId(m.videoUrl)
       return urlVideoId === videoId
@@ -112,7 +134,7 @@ export default function EditVideoPage({
         timestamp: m.timestamp ?? "",
       }))
     )
-  }, [allMarkers, videoId])
+  }, [sortedAllMarkers, videoId])
 
   useEffect(() => {
     if (authData && !authData.authenticated) {
@@ -167,21 +189,6 @@ export default function EditVideoPage({
 
   // Get city markers for parent dropdown
   const cityMarkers = allMarkers?.filter((m) => m.type === 'city') || []
-
-  // Convert timestamp string to seconds for sorting
-  const timestampToSeconds = (timestamp: string | null | undefined): number => {
-    if (!timestamp) return Infinity // Items without timestamp go to the end
-    
-    const parts = timestamp.split(":").map(Number)
-    if (parts.length === 2) {
-      // mm:ss format
-      return parts[0] * 60 + parts[1]
-    } else if (parts.length === 3) {
-      // hh:mm:ss format
-      return parts[0] * 3600 + parts[1] * 60 + parts[2]
-    }
-    return Infinity
-  }
 
   const handleSave = async () => {
     setSaving(true)

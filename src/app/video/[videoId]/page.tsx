@@ -28,7 +28,7 @@ export async function generateMetadata({
 
   try {
     const { rows } = await query<MarkerRow>(
-      `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+      `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
        FROM explorer_markers
        WHERE video_url ILIKE $1
        LIMIT 1`,
@@ -72,10 +72,16 @@ export default async function VideoDetailPage({
 
   // Fetch markers for this video
   const { rows } = await query<MarkerRow>(
-    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
      FROM explorer_markers
      WHERE video_url ILIKE $1
-     ORDER BY created_at ASC`,
+     ORDER BY 
+       CASE 
+         WHEN timestamp IS NOT NULL THEN 0 
+         ELSE 1 
+       END,
+       timestamp ASC NULLS LAST,
+       created_at ASC`,
     [`%${videoId}%`]
   )
 
@@ -108,7 +114,7 @@ export default async function VideoDetailPage({
 
       // Fetch videos at location directly from DB
       const { rows: locationMarkerRows } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
          FROM explorer_markers
          WHERE location_id = $1 AND video_url IS NOT NULL
          ORDER BY video_published_at DESC NULLS LAST, created_at DESC`,
