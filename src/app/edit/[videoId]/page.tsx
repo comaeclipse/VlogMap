@@ -60,18 +60,18 @@ export default function EditVideoPage({
 
   const { data: allMarkers, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
 
-  // Helper to convert timestamp to seconds
-  const timestampToSeconds = (timestamp: string | null | undefined): number => {
-    if (!timestamp) return Infinity
-    const parts = timestamp.split(":").map(Number)
-    if (parts.length === 2) return parts[0] * 60 + parts[1]
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-    return Infinity
-  }
-
   // Sort markers by timestamp for display
   const sortedAllMarkers = useMemo(() => {
     if (!allMarkers) return []
+    
+    const timestampToSeconds = (timestamp: string | null | undefined): number => {
+      if (!timestamp) return Infinity
+      const parts = timestamp.split(":").map(Number)
+      if (parts.length === 2) return parts[0] * 60 + parts[1]
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+      return Infinity
+    }
+    
     return [...allMarkers].sort((a, b) => {
       const timeA = timestampToSeconds(a.timestamp)
       const timeB = timestampToSeconds(b.timestamp)
@@ -80,7 +80,7 @@ export default function EditVideoPage({
       }
       return timeA - timeB
     })
-  }, [allMarkers, timestampToSeconds])
+  }, [allMarkers])
 
   const [locations, setLocations] = useState<LocationEdit[]>([])
   const [videoInfo, setVideoInfo] = useState<{
@@ -205,6 +205,15 @@ export default function EditVideoPage({
 
       if (!videoInfo) {
         throw new Error("Video info not loaded")
+      }
+
+      // Helper to convert timestamp to seconds
+      const timestampToSeconds = (timestamp: string | null | undefined): number => {
+        if (!timestamp) return Infinity
+        const parts = timestamp.split(":").map(Number)
+        if (parts.length === 2) return parts[0] * 60 + parts[1]
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+        return Infinity
       }
 
       // Sort locations by timestamp before saving
