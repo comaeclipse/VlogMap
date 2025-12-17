@@ -11,6 +11,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/sonner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { RichTextEditor } from "@/components/rich-text-editor"
 import { extractYouTubeId } from "@/lib/youtube"
 import type { Marker } from "@/types/markers"
@@ -33,6 +40,8 @@ type LocationEdit = {
   screenshotUrl: string
   locationId?: string | null
   locationName?: string | null
+  type?: 'city' | 'landmark' | null
+  parentCityId?: number | null
 }
 
 export default function EditVideoPage({
@@ -97,6 +106,8 @@ export default function EditVideoPage({
         screenshotUrl: m.screenshotUrl ?? "",
         locationId: m.locationId,
         locationName: m.locationName ?? null,
+        type: m.type,
+        parentCityId: m.parentCityId,
       }))
     )
   }, [allMarkers, videoId])
@@ -145,12 +156,15 @@ export default function EditVideoPage({
   const updateLocation = (
     id: number,
     field: keyof LocationEdit,
-    value: string | number
+    value: string | number | null | undefined
   ) => {
     setLocations((prev) =>
       prev.map((loc) => (loc.id === id ? { ...loc, [field]: value } : loc))
     )
   }
+
+  // Get city markers for parent dropdown
+  const cityMarkers = allMarkers?.filter((m) => m.type === 'city') || []
 
   const handleSave = async () => {
     setSaving(true)
@@ -341,7 +355,7 @@ export default function EditVideoPage({
                       }
                     />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor={`city-${location.id}`}>City</Label>
                     <Input
                       id={`city-${location.id}`}
@@ -351,6 +365,56 @@ export default function EditVideoPage({
                       }
                     />
                   </div>
+                  <div>
+                    <Label htmlFor={`type-${location.id}`}>Location Type</Label>
+                    <Select
+                      value={location.type || "unspecified"}
+                      onValueChange={(value) => {
+                        const newType = value === "unspecified" ? null : (value as 'city' | 'landmark')
+                        updateLocation(location.id, "type", newType)
+                        // Clear parent if not landmark
+                        if (newType !== 'landmark') {
+                          updateLocation(location.id, "parentCityId", null)
+                        }
+                      }}
+                    >
+                      <SelectTrigger id={`type-${location.id}`}>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unspecified">Unspecified</SelectItem>
+                        <SelectItem value="city">City</SelectItem>
+                        <SelectItem value="landmark">Landmark</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {location.type === 'landmark' && (
+                    <div className="sm:col-span-2">
+                      <Label htmlFor={`parent-${location.id}`}>Parent City (Optional)</Label>
+                      <Select
+                        value={location.parentCityId?.toString() || "none"}
+                        onValueChange={(value) => {
+                          updateLocation(
+                            location.id,
+                            "parentCityId",
+                            value === "none" ? null : Number(value)
+                          )
+                        }}
+                      >
+                        <SelectTrigger id={`parent-${location.id}`}>
+                          <SelectValue placeholder="Select parent city" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          <SelectItem value="none">No parent city</SelectItem>
+                          {cityMarkers.map((city) => (
+                            <SelectItem key={city.id} value={city.id.toString()}>
+                              {city.creator} - {city.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="sm:col-span-2">
                     <Label htmlFor={`name-${location.id}`}>
                       Location Name
