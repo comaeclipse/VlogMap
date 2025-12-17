@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 import { query } from "@/lib/db"
 import { requireAdmin } from "@/lib/auth"
 
@@ -51,7 +51,7 @@ async function geocodeLocation(
   return { city, district, country }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   // Require admin authentication
   const authResult = await requireAdmin(request)
   if (authResult) return authResult
