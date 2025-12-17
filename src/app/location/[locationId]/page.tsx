@@ -2,7 +2,8 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Globe2, MapPin, Video } from "lucide-react"
-import { query } from "@/lib/db"
+import { query, mapMarkerRow } from "@/lib/db"
+import type { MarkerRow } from "@/lib/db"
 import { groupMarkersByVideo } from "@/lib/group-markers"
 import { extractYouTubeId, getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { Button } from "@/components/ui/button"
@@ -45,18 +46,43 @@ export default async function LocationDetailPage({
 }) {
   const { locationId } = await params
 
-  // Fetch location and markers
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-  const response = await fetch(`${baseUrl}/api/locations/${locationId}`, {
-    cache: "no-store",
-  })
+  // Fetch location details
+  const { rows: locationRows } = await query<{
+    id: string
+    latitude: number
+    longitude: number
+    city: string | null
+    name: string | null
+    created_at: string
+  }>(
+    `SELECT id, latitude, longitude, city, name, created_at
+     FROM locations
+     WHERE id = $1`,
+    [locationId],
+  )
 
-  if (!response.ok) {
+  if (locationRows.length === 0) {
     notFound()
   }
 
-  const data = await response.json()
-  const { grouped: videos } = groupMarkersByVideo(data.markers)
+  const location = locationRows[0]
+
+  // Fetch all markers at this location
+  const { rows: markerRows } = await query<MarkerRow>(
+    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+     FROM explorer_markers
+     WHERE location_id = $1
+     ORDER BY created_at DESC`,
+    [locationId],
+  )
+
+  const markers = markerRows.map(mapMarkerRow)
+  const { grouped: videos } = groupMarkersByVideo(markers)
+
+  const data = {
+    ...location,
+    markers,
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
