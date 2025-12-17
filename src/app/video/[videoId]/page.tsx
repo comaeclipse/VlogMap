@@ -7,6 +7,7 @@ import { query, mapMarkerRow } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { findNearbyVideos } from "@/lib/nearby-videos"
+import { groupMarkersByVideo } from "@/lib/group-markers"
 import { VideoHeader } from "@/components/video/video-header"
 import { VideoMapSection } from "@/components/video/video-map-section"
 import { PhotoGallery } from "@/components/video/photo-gallery"
@@ -87,33 +88,34 @@ export default async function VideoDetailPage({
   // Get location ID from first marker
   const locationId = markers[0]?.locationId
 
-  // Fetch videos at the same location and location details
+  // Fetch videos at the same location and location details using direct DB queries
   let locationVideos: VideoGroup[] = []
   let locationName: string | null = null
   if (locationId) {
     try {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-      
-      // Fetch location details
-      const locationDetailsRes = await fetch(
-        `${baseUrl}/api/locations/${locationId}`,
-        { cache: "no-store" },
+      // Fetch location details directly from DB
+      const { rows: locationRows } = await query<{
+        name: string | null
+        city: string | null
+      }>(
+        "SELECT name, city FROM locations WHERE id = $1",
+        [locationId],
       )
-      if (locationDetailsRes.ok) {
-        const locationData = await locationDetailsRes.json()
-        locationName = locationData.name || locationData.city || null
+      if (locationRows.length > 0) {
+        locationName = locationRows[0].name || locationRows[0].city || null
       }
 
-      // Fetch videos at location
-      const locationRes = await fetch(
-        `${baseUrl}/api/locations/${locationId}/videos`,
-        { cache: "no-store" },
+      // Fetch videos at location directly from DB
+      const { rows: locationMarkerRows } = await query<MarkerRow>(
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+         FROM explorer_markers
+         WHERE location_id = $1 AND video_url IS NOT NULL
+         ORDER BY video_published_at DESC NULLS LAST, created_at DESC`,
+        [locationId],
       )
-      if (locationRes.ok) {
-        const data = await locationRes.json()
-        locationVideos = data.videos || []
-      }
+      const locationMarkers = locationMarkerRows.map(mapMarkerRow)
+      const { grouped } = groupMarkersByVideo(locationMarkers)
+      locationVideos = grouped
     } catch (error) {
       console.error("Failed to fetch location data:", error)
     }
