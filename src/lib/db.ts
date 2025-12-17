@@ -14,6 +14,7 @@ export type MarkerRow = {
   video_published_at: string | null
   screenshot_url: string | null
   summary: string | null
+  location_id: string | null
   created_at: string
 }
 
@@ -84,6 +85,50 @@ async function ensureSchema() {
         await getPool().query(
           `ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS summary TEXT`,
         )
+
+        // Create locations table
+        await getPool().query(`
+          CREATE TABLE IF NOT EXISTS locations (
+            id VARCHAR(8) PRIMARY KEY,
+            latitude DOUBLE PRECISION NOT NULL,
+            longitude DOUBLE PRECISION NOT NULL,
+            city TEXT,
+            name TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `)
+
+        // Create index on location coordinates
+        await getPool().query(`
+          CREATE INDEX IF NOT EXISTS idx_locations_coords
+          ON locations (latitude, longitude)
+        `)
+
+        // Add location_id column to explorer_markers
+        await getPool().query(`
+          ALTER TABLE explorer_markers
+          ADD COLUMN IF NOT EXISTS location_id VARCHAR(8)
+        `)
+
+        // Add foreign key constraint (will fail silently if already exists)
+        try {
+          await getPool().query(`
+            ALTER TABLE explorer_markers
+            ADD CONSTRAINT fk_location_id
+            FOREIGN KEY (location_id)
+            REFERENCES locations(id)
+            ON DELETE SET NULL
+          `)
+        } catch (fkErr: unknown) {
+          // Constraint already exists, ignore
+        }
+
+        // Create index on location_id for faster joins
+        await getPool().query(`
+          CREATE INDEX IF NOT EXISTS idx_markers_location_id
+          ON explorer_markers (location_id)
+        `)
       } catch (err: unknown) {
         // Ignore duplicate type error (23505 on pg_type) - table already exists
         const pgErr = err as { code?: string; table?: string }
@@ -122,6 +167,7 @@ export function mapMarkerRow(row: MarkerRow) {
     videoPublishedAt: row.video_published_at,
     screenshotUrl: row.screenshot_url,
     summary: row.summary,
+    locationId: row.location_id,
     createdAt: row.created_at,
   }
 }

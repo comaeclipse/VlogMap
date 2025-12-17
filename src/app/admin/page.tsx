@@ -473,6 +473,11 @@ export default function AdminPage() {
                           {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
                           {m.city ? ` · ${m.city}` : ""}
                         </p>
+                        {m.locationId && (
+                          <p className="text-xs text-blue-400 font-mono">
+                            📍 {m.locationId}
+                          </p>
+                        )}
                         {m.description ? (
                           <p className="text-xs text-slate-400 line-clamp-2">{m.description}</p>
                         ) : null}

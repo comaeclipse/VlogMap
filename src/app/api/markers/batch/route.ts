@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth"
 import { mapMarkerRow, query } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { batchUpdateSchema } from "@/lib/markers"
+import { assignLocationToMarker } from "@/lib/location-matching"
 
 export async function POST(request: NextRequest) {
   const authResponse = requireAdmin(request)
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
           `UPDATE explorer_markers
            SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5
            WHERE id = $6
-           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at`,
+           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at`,
           [
             update.latitude,
             update.longitude,
@@ -84,15 +85,43 @@ export async function POST(request: NextRequest) {
             update.city ?? null,
             update.screenshotUrl ?? null,
             update.id,
-          ]
+          ],
         )
 
         updatedMarkers.push(rows[0])
       }
 
+      // Reassign location IDs for all updated markers
+      for (const marker of updatedMarkers) {
+        try {
+          await assignLocationToMarker(
+            marker.id,
+            marker.latitude,
+            marker.longitude,
+            marker.city,
+          )
+        } catch (locationError) {
+          console.error(
+            `Failed to reassign location for marker ${marker.id}:`,
+            locationError,
+          )
+          // Continue with other markers even if one fails
+        }
+      }
+
+      // Fetch all updated markers with their new location_ids
+      const markerIds = updatedMarkers.map((m) => m.id)
+      const placeholders = markerIds.map((_, i) => `$${i + 1}`).join(", ")
+      const { rows: finalMarkers } = await query<MarkerRow>(
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+         FROM explorer_markers
+         WHERE id IN (${placeholders})`,
+        markerIds,
+      )
+
       await query("COMMIT")
 
-      return NextResponse.json(updatedMarkers.map(mapMarkerRow))
+      return NextResponse.json(finalMarkers.map(mapMarkerRow))
     } catch (error) {
       await query("ROLLBACK")
       throw error

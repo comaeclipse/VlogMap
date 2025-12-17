@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth"
 import { mapMarkerRow, query } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
+import { assignLocationToMarker } from "@/lib/location-matching"
 
 export async function GET(request: NextRequest) {
   const videoUrl = request.nextUrl.searchParams.get("videoUrl")
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const { rows } = await query<MarkerRow>(
       `
-      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
+      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
       FROM explorer_markers
       ${videoUrl ? "WHERE video_url = $1" : ""}
       ORDER BY created_at DESC
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO explorer_markers
           (title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
       `,
       [
         payload.title,
@@ -53,13 +54,38 @@ export async function POST(request: NextRequest) {
         payload.latitude,
         payload.longitude,
         payload.city ?? null,
-        payload.videoPublishedAt ? new Date(payload.videoPublishedAt).toISOString() : null,
+        payload.videoPublishedAt
+          ? new Date(payload.videoPublishedAt).toISOString()
+          : null,
         payload.screenshotUrl ?? null,
         payload.summary ?? null,
       ],
     )
 
-    return NextResponse.json(mapMarkerRow(rows[0]), { status: 201 })
+    const marker = rows[0]
+
+    // Auto-assign location ID
+    try {
+      await assignLocationToMarker(
+        marker.id,
+        marker.latitude,
+        marker.longitude,
+        marker.city,
+      )
+
+      // Fetch updated marker with location_id
+      const { rows: updatedRows } = await query<MarkerRow>(
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+         FROM explorer_markers WHERE id = $1`,
+        [marker.id],
+      )
+
+      return NextResponse.json(mapMarkerRow(updatedRows[0]), { status: 201 })
+    } catch (locationError) {
+      console.error("Failed to assign location ID:", locationError)
+      // Return marker without location_id if assignment fails
+      return NextResponse.json(mapMarkerRow(marker), { status: 201 })
+    }
   } catch (error) {
     console.error("Failed to create marker", error)
     if (error instanceof Error && "issues" in error) {

@@ -4,6 +4,10 @@ import { requireAdmin } from "@/lib/auth"
 import { mapMarkerRow, query } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
+import {
+  assignLocationToMarker,
+  updateLocationCentroid,
+} from "@/lib/location-matching"
 
 function parseId(id: string) {
   const numeric = Number(id)
@@ -30,6 +34,30 @@ export async function PUT(
     const body = await request.json()
     const payload = markerSchema.parse(body)
 
+    // Get old location_id and coordinates before update
+    const { rows: oldRows } = await query<{
+      location_id: string | null
+      latitude: number
+      longitude: number
+    }>(
+      "SELECT location_id, latitude, longitude FROM explorer_markers WHERE id = $1",
+      [id],
+    )
+
+    if (!oldRows.length) {
+      return NextResponse.json({ error: "Marker not found" }, { status: 404 })
+    }
+
+    const oldLocationId = oldRows[0].location_id
+    const oldLatitude = oldRows[0].latitude
+    const oldLongitude = oldRows[0].longitude
+
+    // Check if coordinates changed significantly (more than 200m ~ 0.002 degrees)
+    const coordinatesChanged =
+      Math.abs(oldLatitude - payload.latitude) > 0.002 ||
+      Math.abs(oldLongitude - payload.longitude) > 0.002
+
+    // Update marker
     const { rows } = await query<MarkerRow>(
       `
         UPDATE explorer_markers
@@ -45,7 +73,7 @@ export async function PUT(
             screenshot_url = $10,
             summary = $11
         WHERE id = $12
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
       `,
       [
         payload.title,
@@ -56,15 +84,50 @@ export async function PUT(
         payload.latitude,
         payload.longitude,
         payload.city ?? null,
-        payload.videoPublishedAt ? new Date(payload.videoPublishedAt).toISOString() : null,
+        payload.videoPublishedAt
+          ? new Date(payload.videoPublishedAt).toISOString()
+          : null,
         payload.screenshotUrl ?? null,
         payload.summary ?? null,
         id,
       ],
     )
 
-    if (!rows.length) {
-      return NextResponse.json({ error: "Marker not found" }, { status: 404 })
+    // Handle location reassignment if coordinates changed
+    if (coordinatesChanged) {
+      try {
+        // Assign new location (or find nearby existing one)
+        await assignLocationToMarker(
+          id,
+          payload.latitude,
+          payload.longitude,
+          payload.city ?? null,
+        )
+
+        // Update centroid of old location (if it exists)
+        if (oldLocationId) {
+          await updateLocationCentroid(oldLocationId)
+        }
+
+        // Fetch updated marker with new location_id
+        const { rows: updatedRows } = await query<MarkerRow>(
+          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+           FROM explorer_markers WHERE id = $1`,
+          [id],
+        )
+
+        return NextResponse.json(mapMarkerRow(updatedRows[0]))
+      } catch (locationError) {
+        console.error("Failed to reassign location ID:", locationError)
+        // Return marker with old location_id if reassignment fails
+      }
+    } else if (oldLocationId) {
+      // Coordinates didn't change much, just update centroid of current location
+      try {
+        await updateLocationCentroid(oldLocationId)
+      } catch (centroidError) {
+        console.error("Failed to update centroid:", centroidError)
+      }
     }
 
     return NextResponse.json(mapMarkerRow(rows[0]))
@@ -97,6 +160,15 @@ export async function DELETE(
   }
 
   try {
+    // Get location_id before deletion
+    const { rows: markerRows } = await query<{ location_id: string | null }>(
+      "SELECT location_id FROM explorer_markers WHERE id = $1",
+      [id],
+    )
+
+    const locationId = markerRows[0]?.location_id
+
+    // Delete marker
     const { rowCount } = await query(
       `DELETE FROM explorer_markers WHERE id = $1`,
       [id],
@@ -104,6 +176,18 @@ export async function DELETE(
 
     if (!rowCount) {
       return NextResponse.json({ error: "Marker not found" }, { status: 404 })
+    }
+
+    // Update centroid of location (will auto-delete if no markers remain)
+    if (locationId) {
+      try {
+        await updateLocationCentroid(locationId)
+      } catch (locationError) {
+        console.error(
+          "Failed to update location centroid after deletion:",
+          locationError,
+        )
+      }
     }
 
     return NextResponse.json({ success: true })

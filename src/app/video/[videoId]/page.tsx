@@ -12,7 +12,9 @@ import { VideoMapSection } from "@/components/video/video-map-section"
 import { PhotoGallery } from "@/components/video/photo-gallery"
 import { VideoSummarySection } from "@/components/video/video-summary-section"
 import { NearbyVideosSection } from "@/components/video/nearby-videos-section"
+import { LocationVideosSection } from "@/components/video/location-videos-section"
 import { Button } from "@/components/ui/button"
+import type { VideoGroup } from "@/types/markers"
 
 export async function generateMetadata({
   params,
@@ -24,7 +26,7 @@ export async function generateMetadata({
 
   try {
     const { rows } = await query<MarkerRow>(
-      `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
+      `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
        FROM explorer_markers
        WHERE video_url ILIKE $1
        LIMIT 1`,
@@ -68,7 +70,7 @@ export default async function VideoDetailPage({
 
   // Fetch markers for this video
   const { rows } = await query<MarkerRow>(
-    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
+    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
      FROM explorer_markers
      WHERE video_url ILIKE $1
      ORDER BY created_at ASC`,
@@ -81,6 +83,28 @@ export default async function VideoDetailPage({
 
   const markers = rows.map(mapMarkerRow)
   const canonicalVideoUrl = markers[0]?.videoUrl || videoUrl
+
+  // Get location ID from first marker
+  const locationId = markers[0]?.locationId
+
+  // Fetch videos at the same location
+  let locationVideos: VideoGroup[] = []
+  if (locationId) {
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+      const locationRes = await fetch(
+        `${baseUrl}/api/locations/${locationId}/videos`,
+        { cache: "no-store" },
+      )
+      if (locationRes.ok) {
+        const data = await locationRes.json()
+        locationVideos = data.videos || []
+      }
+    } catch (error) {
+      console.error("Failed to fetch location videos:", error)
+    }
+  }
 
   // Find nearby videos
   const nearbyVideos = await findNearbyVideos(markers, canonicalVideoUrl)
@@ -126,6 +150,14 @@ export default async function VideoDetailPage({
             </div>
           </div>
         </div>
+
+        {locationId && locationVideos.length > 0 && (
+          <LocationVideosSection
+            locationId={locationId}
+            videos={locationVideos}
+            currentVideoUrl={canonicalVideoUrl}
+          />
+        )}
 
         <NearbyVideosSection videos={nearbyVideos} />
       </main>

@@ -11,6 +11,7 @@ export type Marker = {
   videoPublishedAt?: string | null
   screenshotUrl?: string | null
   summary?: string | null
+  locationId?: string | null
   createdAt?: string
 }
 
@@ -42,4 +43,14 @@ export type BatchUpdatePayload = {
 
 export type NearbyVideo = VideoGroup & {
   distanceKm: number
+}
+
+export type Location = {
+  id: string
+  latitude: number
+  longitude: number
+  city?: string | null
+  name?: string | null
+  createdAt: string
+  updatedAt: string
 }
