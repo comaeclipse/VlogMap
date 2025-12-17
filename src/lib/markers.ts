@@ -25,11 +25,11 @@ export const locationUpdateSchema = z.object({
   id: z.number().int().positive(),
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
-  description: z.string().max(500).optional().or(z.literal("").transform(() => undefined)),
-  city: z.string().max(120).optional().or(z.literal("").transform(() => undefined)),
-  screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  description: z.string().max(500).optional().nullable().or(z.literal("").transform(() => undefined)),
+  city: z.string().max(120).optional().nullable().or(z.literal("").transform(() => undefined)),
+  screenshotUrl: z.string().url().optional().nullable().or(z.literal("").transform(() => undefined)),
   locationId: z.string().max(8).optional().nullable(),
-  locationName: z.string().max(200).optional().or(z.literal("").transform(() => undefined)),
+  locationName: z.string().max(200).optional().nullable().or(z.literal("").transform(() => undefined)),
 })
 
 export const videoMetadataSchema = z.object({
