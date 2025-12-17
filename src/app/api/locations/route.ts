@@ -6,6 +6,8 @@ type LocationWithStats = {
   latitude: number
   longitude: number
   city: string | null
+  district: string | null
+  country: string | null
   name: string | null
   createdAt: string
   markerCount: number
@@ -20,6 +22,8 @@ export async function GET() {
       latitude: number
       longitude: number
       city: string | null
+      district: string | null
+      country: string | null
       name: string | null
       created_at: string
       marker_count: string
@@ -30,13 +34,15 @@ export async function GET() {
          l.latitude,
          l.longitude,
          l.city,
+         l.district,
+         l.country,
          l.name,
          l.created_at,
          COUNT(DISTINCT m.id) as marker_count,
          COUNT(DISTINCT m.video_url) FILTER (WHERE m.video_url IS NOT NULL) as video_count
        FROM locations l
        LEFT JOIN explorer_markers m ON l.id = m.location_id
-       GROUP BY l.id, l.latitude, l.longitude, l.city, l.name, l.created_at
+       GROUP BY l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.created_at
        ORDER BY video_count DESC, marker_count DESC`,
     )
 
@@ -45,6 +51,8 @@ export async function GET() {
       latitude: row.latitude,
       longitude: row.longitude,
       city: row.city,
+      district: row.district,
+      country: row.country,
       name: row.name,
       createdAt: row.created_at,
       markerCount: parseInt(row.marker_count, 10),
