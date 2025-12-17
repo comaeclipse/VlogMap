@@ -11,6 +11,8 @@ export type MarkerRow = {
   latitude: number
   longitude: number
   city: string | null
+  district: string | null
+  country: string | null
   video_published_at: string | null
   screenshot_url: string | null
   summary: string | null
@@ -129,6 +131,26 @@ async function ensureSchema() {
           CREATE INDEX IF NOT EXISTS idx_markers_location_id
           ON explorer_markers (location_id)
         `)
+
+        // Add district and country columns to locations table
+        await getPool().query(`
+          ALTER TABLE locations
+          ADD COLUMN IF NOT EXISTS district TEXT
+        `)
+        await getPool().query(`
+          ALTER TABLE locations
+          ADD COLUMN IF NOT EXISTS country TEXT
+        `)
+
+        // Add district and country columns to explorer_markers table
+        await getPool().query(`
+          ALTER TABLE explorer_markers
+          ADD COLUMN IF NOT EXISTS district TEXT
+        `)
+        await getPool().query(`
+          ALTER TABLE explorer_markers
+          ADD COLUMN IF NOT EXISTS country TEXT
+        `)
       } catch (err: unknown) {
         // Ignore duplicate type error (23505 on pg_type) - table already exists
         const pgErr = err as { code?: string; table?: string }
@@ -164,6 +186,8 @@ export function mapMarkerRow(row: MarkerRow) {
     latitude: row.latitude,
     longitude: row.longitude,
     city: row.city,
+    district: row.district,
+    country: row.country,
     videoPublishedAt: row.video_published_at,
     screenshotUrl: row.screenshot_url,
     summary: row.summary,

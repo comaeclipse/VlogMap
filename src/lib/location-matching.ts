@@ -56,6 +56,8 @@ export async function createLocation(
   latitude: number,
   longitude: number,
   city?: string | null,
+  district?: string | null,
+  country?: string | null,
 ): Promise<string> {
   // Generate unique ID
   const checkExists = async (id: string) => {
@@ -70,9 +72,16 @@ export async function createLocation(
 
   // Insert new location
   await query(
-    `INSERT INTO locations (id, latitude, longitude, city)
-     VALUES ($1, $2, $3, $4)`,
-    [locationId, latitude, longitude, city ?? null],
+    `INSERT INTO locations (id, latitude, longitude, city, district, country)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      locationId,
+      latitude,
+      longitude,
+      city ?? null,
+      district ?? null,
+      country ?? null,
+    ],
   )
 
   return locationId
@@ -119,13 +128,15 @@ export async function assignLocationToMarker(
   latitude: number,
   longitude: number,
   city?: string | null,
+  district?: string | null,
+  country?: string | null,
 ): Promise<string> {
   // Try to find existing nearby location
   let locationId = await findNearbyLocation(latitude, longitude)
 
   // Create new location if none found
   if (!locationId) {
-    locationId = await createLocation(latitude, longitude, city)
+    locationId = await createLocation(latitude, longitude, city, district, country)
   }
 
   // Update marker with location_id

@@ -8,6 +8,8 @@ export type Marker = {
   latitude: number
   longitude: number
   city?: string | null
+  district?: string | null
+  country?: string | null
   videoPublishedAt?: string | null
   screenshotUrl?: string | null
   summary?: string | null
@@ -50,6 +52,8 @@ export type Location = {
   latitude: number
   longitude: number
   city?: string | null
+  district?: string | null
+  country?: string | null
   name?: string | null
   createdAt: string
   updatedAt: string

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const { rows } = await query<MarkerRow>(
       `
-      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+      SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
       FROM explorer_markers
       ${videoUrl ? "WHERE video_url = $1" : ""}
       ORDER BY created_at DESC
@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
     const { rows } = await query<MarkerRow>(
       `
         INSERT INTO explorer_markers
-          (title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+          (title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
       `,
       [
         payload.title,
@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
         payload.latitude,
         payload.longitude,
         payload.city ?? null,
+        payload.district ?? null,
+        payload.country ?? null,
         payload.videoPublishedAt
           ? new Date(payload.videoPublishedAt).toISOString()
           : null,
@@ -71,11 +73,13 @@ export async function POST(request: NextRequest) {
         marker.latitude,
         marker.longitude,
         marker.city,
+        marker.district,
+        marker.country,
       )
 
       // Fetch updated marker with location_id
       const { rows: updatedRows } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
          FROM explorer_markers WHERE id = $1`,
         [marker.id],
       )

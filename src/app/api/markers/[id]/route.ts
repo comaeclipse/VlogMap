@@ -69,11 +69,13 @@ export async function PUT(
             latitude = $6,
             longitude = $7,
             city = $8,
-            video_published_at = $9,
-            screenshot_url = $10,
-            summary = $11
-        WHERE id = $12
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+            district = $9,
+            country = $10,
+            video_published_at = $11,
+            screenshot_url = $12,
+            summary = $13
+        WHERE id = $14
+        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
       `,
       [
         payload.title,
@@ -84,6 +86,8 @@ export async function PUT(
         payload.latitude,
         payload.longitude,
         payload.city ?? null,
+        payload.district ?? null,
+        payload.country ?? null,
         payload.videoPublishedAt
           ? new Date(payload.videoPublishedAt).toISOString()
           : null,
@@ -102,6 +106,8 @@ export async function PUT(
           payload.latitude,
           payload.longitude,
           payload.city ?? null,
+          payload.district ?? null,
+          payload.country ?? null,
         )
 
         // Update centroid of old location (if it exists)
@@ -111,7 +117,7 @@ export async function PUT(
 
         // Fetch updated marker with new location_id
         const { rows: updatedRows } = await query<MarkerRow>(
-          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, location_id, created_at
+          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, created_at
            FROM explorer_markers WHERE id = $1`,
           [id],
         )

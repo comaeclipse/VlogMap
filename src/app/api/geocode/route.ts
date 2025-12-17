@@ -34,13 +34,24 @@ export async function POST(request: NextRequest) {
     const components: Array<{ long_name: string; types: string[] }> =
       result?.address_components || []
 
+    // Extract city
     const city =
       components.find((c) => c.types.includes("locality"))?.long_name ||
       components.find((c) => c.types.includes("postal_town"))?.long_name ||
-      components.find((c) => c.types.includes("administrative_area_level_2"))?.long_name ||
+      components.find((c) => c.types.includes("administrative_area_level_2"))
+        ?.long_name ||
       null
 
-    return NextResponse.json({ city })
+    // Extract district/state
+    const district =
+      components.find((c) => c.types.includes("administrative_area_level_1"))
+        ?.long_name || null
+
+    // Extract country
+    const country =
+      components.find((c) => c.types.includes("country"))?.long_name || null
+
+    return NextResponse.json({ city, district, country })
   } catch (error) {
     console.error("Geocode failed", error)
     return NextResponse.json({ error: "Geocode failed" }, { status: 500 })

@@ -51,6 +51,9 @@ const emptyMarker: MarkerInput = {
   description: "",
   latitude: 0,
   longitude: 0,
+  city: "",
+  district: "",
+  country: "",
   videoPublishedAt: "",
 }
 
@@ -193,6 +196,8 @@ export default function AdminPage() {
       latitude: 0,
       longitude: 0,
       city: "",
+      district: "",
+      country: "",
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -208,6 +213,8 @@ export default function AdminPage() {
       latitude: marker.latitude,
       longitude: marker.longitude,
       city: marker.city ?? "",
+      district: marker.district ?? "",
+      country: marker.country ?? "",
       videoPublishedAt: marker.videoPublishedAt ?? "",
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -229,6 +236,8 @@ export default function AdminPage() {
       latitude: marker.latitude,
       longitude: marker.longitude,
       city: marker.city ?? "",
+      district: marker.district ?? "",
+      country: marker.country ?? "",
       videoPublishedAt: marker.videoPublishedAt ?? "",
     })
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -241,6 +250,8 @@ export default function AdminPage() {
       latitude: 0,
       longitude: 0,
       city: "",
+      district: "",
+      country: "",
       description: "",
     }))
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -296,15 +307,25 @@ export default function AdminPage() {
       })
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}))
-        toast.error(payload?.error || "Could not lookup city")
+        toast.error(payload?.error || "Could not lookup location")
         return
       }
-      const payload = (await res.json()) as { city?: string | null }
-      if (payload.city) {
-        setForm((prev) => ({ ...prev, city: payload.city || prev.city }))
-        toast.success(`City: ${payload.city}`)
+      const payload = (await res.json()) as {
+        city?: string | null
+        district?: string | null
+        country?: string | null
+      }
+      if (payload.city || payload.district || payload.country) {
+        setForm((prev) => ({
+          ...prev,
+          city: payload.city || prev.city,
+          district: payload.district || prev.district,
+          country: payload.country || prev.country,
+        }))
+        const parts = [payload.city, payload.district, payload.country].filter(Boolean)
+        toast.success(`Location: ${parts.join(", ")}`)
       } else {
-        toast.error("City not found")
+        toast.error("Location not found")
       }
     } finally {
       setGeoLoading(false)
@@ -553,11 +574,29 @@ export default function AdminPage() {
                   size="icon"
                   onClick={fetchCity}
                   disabled={geoLoading}
-                  title="Lookup city by coordinates"
+                  title="Lookup location by coordinates"
                 >
                   <RefreshCw className={`h-4 w-4 ${geoLoading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="district">District / State</Label>
+              <Input
+                id="district"
+                placeholder="State / Province"
+                value={form.district ?? ""}
+                onChange={(e) => setForm({ ...form, district: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                placeholder="Country"
+                value={form.country ?? ""}
+                onChange={(e) => setForm({ ...form, country: e.target.value })}
+              />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description</Label>
