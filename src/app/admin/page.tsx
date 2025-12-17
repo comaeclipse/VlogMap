@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, LogOut, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { ArrowLeft, LogOut, Pencil, Plus, RefreshCw, Trash2, MapPin } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -70,6 +70,7 @@ export default function AdminPage() {
   const [batchEditVideo, setBatchEditVideo] = useState<VideoGroup | null>(null)
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
   const [selectedCreator, setSelectedCreator] = useState<string>("all")
+  const [backfillLoading, setBackfillLoading] = useState(false)
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
     form.videoUrl ? ["/api/markers", form.videoUrl] : null,
@@ -106,6 +107,41 @@ export default function AdminPage() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     router.push("/login")
+  }
+
+  const handleBackfillGeodata = async () => {
+    if (!confirm("This will backfill city/country data for all locations with missing information using Google Maps API. This may take a few minutes and will consume API quota. Continue?")) {
+      return
+    }
+
+    setBackfillLoading(true)
+    toast.info("Starting backfill process...")
+
+    try {
+      const res = await fetch("/api/locations/backfill-geodata", {
+        method: "POST",
+        credentials: "include",
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Backfill failed")
+        return
+      }
+
+      const results = await res.json()
+      toast.success(
+        `Backfill complete! Updated ${results.updated} locations${results.failed > 0 ? `, ${results.failed} failed` : ""}`,
+      )
+      
+      // Refresh the markers data
+      await mutate()
+    } catch (error) {
+      toast.error("Failed to backfill location data")
+      console.error(error)
+    } finally {
+      setBackfillLoading(false)
+    }
   }
 
   const handleSave = async () => {
@@ -370,6 +406,17 @@ export default function AdminPage() {
             <span className="text-sm text-slate-400">
               {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
             </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleBackfillGeodata}
+              disabled={backfillLoading}
+              className="gap-2"
+              title="Backfill missing city/country data"
+            >
+              <MapPin className="h-4 w-4" />
+              {backfillLoading ? "Processing..." : "Backfill Geo"}
+            </Button>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
               <LogOut className="h-4 w-4" />
               Logout

@@ -146,55 +146,57 @@ export default function LocationsPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold">All Locations</h1>
-          {isLoading ? (
-            <p className="mt-2 text-slate-400">Loading locations...</p>
-          ) : error ? (
-            <p className="mt-2 text-red-400">Failed to load locations</p>
-          ) : (
-            <p className="mt-2 text-slate-400">
-              Browse {data?.totalCount || 0} filming location
-              {data?.totalCount !== 1 ? "s" : ""} from videos around the world
-            </p>
+        <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold">All Locations</h1>
+            {isLoading ? (
+              <p className="mt-2 text-slate-400">Loading locations...</p>
+            ) : error ? (
+              <p className="mt-2 text-red-400">Failed to load locations</p>
+            ) : (
+              <p className="mt-2 text-slate-400">
+                Browse {data?.totalCount || 0} filming location
+                {data?.totalCount !== 1 ? "s" : ""} from videos around the world
+              </p>
+            )}
+          </div>
+
+          {/* Sorting and Grouping Controls */}
+          {!isLoading && !error && data && data.locations.length > 0 && (
+            <div className="flex flex-wrap gap-4 md:flex-nowrap">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-slate-400" />
+                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                  <SelectTrigger className="w-[180px] border-white/10 bg-slate-900/60">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="most-videos">Most Videos</SelectItem>
+                    <SelectItem value="fewest-videos">Fewest Videos</SelectItem>
+                    <SelectItem value="a-z">A-Z</SelectItem>
+                    <SelectItem value="z-a">Z-A</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-slate-400" />
+                <Select value={groupBy} onValueChange={(value) => setGroupBy(value as GroupOption)}>
+                  <SelectTrigger className="w-[180px] border-white/10 bg-slate-900/60">
+                    <SelectValue placeholder="Group by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Grouping</SelectItem>
+                    <SelectItem value="city">By City</SelectItem>
+                    <SelectItem value="district">By District</SelectItem>
+                    <SelectItem value="country">By Country</SelectItem>
+                    <SelectItem value="video-count">By Video Count</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Sorting and Grouping Controls */}
-        {!isLoading && !error && data && data.locations.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <ArrowUpDown className="h-4 w-4 text-slate-400" />
-              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                <SelectTrigger className="w-[180px] border-white/10 bg-slate-900/60">
-                  <SelectValue placeholder="Sort by..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="most-videos">Most Videos</SelectItem>
-                  <SelectItem value="fewest-videos">Fewest Videos</SelectItem>
-                  <SelectItem value="a-z">A-Z</SelectItem>
-                  <SelectItem value="z-a">Z-A</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-slate-400" />
-              <Select value={groupBy} onValueChange={(value) => setGroupBy(value as GroupOption)}>
-                <SelectTrigger className="w-[180px] border-white/10 bg-slate-900/60">
-                  <SelectValue placeholder="Group by..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Grouping</SelectItem>
-                  <SelectItem value="city">By City</SelectItem>
-                  <SelectItem value="district">By District</SelectItem>
-                  <SelectItem value="country">By Country</SelectItem>
-                  <SelectItem value="video-count">By Video Count</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
 
         {isLoading ? (
           <div className="rounded-lg border border-white/10 bg-slate-900/60 p-12 text-center">
