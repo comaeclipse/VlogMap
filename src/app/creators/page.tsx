@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { AlertCircle, Globe2, MapPin, Video, ArrowLeft, Compass } from "lucide-react"
+import { AlertCircle, Globe2, MapPin, Video, ArrowLeft, Compass, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type { CreatorStats } from "@/types/creators"
@@ -27,7 +27,7 @@ export default function CreatorsPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#0a0e14] text-slate-50">
+    <div className="min-h-screen bg-slate-950 text-slate-50">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -110,25 +110,33 @@ export default function CreatorsPage() {
         }
       `}</style>
 
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0e14]/95 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-8">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-pink-500/20 text-blue-200 ring-1 ring-white/10 backdrop-blur">
-              <Compass className="h-5 w-5" />
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-900/85 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-sky-200 ring-1 ring-white/10">
+                <Globe2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Vlog map
+                </p>
+                <h1 className="text-lg font-semibold text-white">Explorer</h1>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">
-                Atlas
-              </p>
-              <h1 className="text-xl font-semibold text-white creators-title">Explorers</h1>
-            </div>
+            <Link href="/creators">
+              <Button variant="ghost" className="gap-2 text-slate-300 hover:text-white">
+                <Users className="h-4 w-4" />
+                Creators
+              </Button>
+            </Link>
+            <Link href="/locations">
+              <Button variant="ghost" className="gap-2 text-slate-300 hover:text-white">
+                <MapPin className="h-4 w-4" />
+                Locations
+              </Button>
+            </Link>
           </div>
-          <Link href="/">
-            <Button variant="ghost" className="gap-2 text-slate-400 hover:text-white hover:bg-white/5">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Map
-            </Button>
-          </Link>
         </div>
       </header>
 

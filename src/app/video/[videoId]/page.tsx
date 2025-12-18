@@ -1,7 +1,7 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Globe2 } from "lucide-react"
+import { ArrowLeft, Globe2, MapPin, Users } from "lucide-react"
 
 import { query, mapMarkerRow } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
@@ -151,19 +151,32 @@ export default async function VideoDetailPage({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-900/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Map
-            </Button>
-          </Link>
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-sky-200 ring-1 ring-white/10">
-              <Globe2 className="h-4 w-4" />
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-900/85 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-sky-200 ring-1 ring-white/10">
+                <Globe2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Vlog map
+                </p>
+                <h1 className="text-lg font-semibold text-white">Explorer</h1>
+              </div>
             </div>
-            <span className="text-sm font-semibold">VlogMap</span>
+            <Link href="/creators">
+              <Button variant="ghost" className="gap-2 text-slate-300 hover:text-white">
+                <Users className="h-4 w-4" />
+                Creators
+              </Button>
+            </Link>
+            <Link href="/locations">
+              <Button variant="ghost" className="gap-2 text-slate-300 hover:text-white">
+                <MapPin className="h-4 w-4" />
+                Locations
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
