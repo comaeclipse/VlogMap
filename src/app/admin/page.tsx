@@ -72,7 +72,7 @@ export default function AdminPage() {
   const [geoLoading, setGeoLoading] = useState(false)
   const [batchEditVideo, setBatchEditVideo] = useState<VideoGroup | null>(null)
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
-  const [selectedCreator, setSelectedCreator] = useState<string>("all")
+  const [selectedCreator, setSelectedCreator] = useState<string>("")
   const [backfillLoading, setBackfillLoading] = useState(false)
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
@@ -92,11 +92,13 @@ export default function AdminPage() {
   )
 
   const filteredVideoGroups = useMemo(() => {
+    if (selectedCreator === "") return []
     if (selectedCreator === "all") return videoGroups
     return videoGroups.filter(video => video.creator === selectedCreator)
   }, [videoGroups, selectedCreator])
 
   const filteredUncategorized = useMemo(() => {
+    if (selectedCreator === "") return []
     if (selectedCreator === "all") return uncategorized
     return uncategorized.filter(marker => marker.creator === selectedCreator)
   }, [uncategorized, selectedCreator])
@@ -413,19 +415,6 @@ export default function AdminPage() {
             <h1 className="text-lg font-semibold">Admin Portal</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-              <SelectTrigger className="w-[180px] h-9 text-xs">
-                <SelectValue placeholder="All Creators" />
-              </SelectTrigger>
-              <SelectContent className="z-[9999]">
-                <SelectItem value="all">All Creators</SelectItem>
-                {creatorOptions.map((creator) => (
-                  <SelectItem key={creator} value={creator}>
-                    {creator}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <span className="text-sm text-slate-400">
               {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
             </span>
@@ -776,6 +765,25 @@ export default function AdminPage() {
           <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
             <h2 className="mb-4 text-base font-semibold">Videos & Locations</h2>
 
+            <div className="mb-4">
+              <Label htmlFor="creator-select" className="mb-2 block text-sm">
+                Select Creator
+              </Label>
+              <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+                <SelectTrigger id="creator-select" className="w-full">
+                  <SelectValue placeholder="Choose a creator..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="all">All Creators</SelectItem>
+                  {creatorOptions.map((creator) => (
+                    <SelectItem key={creator} value={creator}>
+                      {creator}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
           {error && (
             <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
               {error.message}
@@ -788,6 +796,15 @@ export default function AdminPage() {
 
           {data && data.length === 0 && (
             <p className="text-sm text-slate-400">No markers yet. Add one above.</p>
+          )}
+
+          {selectedCreator === "" && data && data.length > 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <MapPin className="mb-3 h-12 w-12 text-slate-500" />
+              <p className="text-base text-slate-400">
+                Select a creator above to view their videos and locations
+              </p>
+            </div>
           )}
 
           {/* Video Groups */}
