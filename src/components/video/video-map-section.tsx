@@ -27,7 +27,7 @@ export function VideoMapSection({ markers }: VideoMapSectionProps) {
       <h2 className="text-xl font-semibold text-slate-50">
         Filming Locations
       </h2>
-      <div className="h-[300px] overflow-hidden rounded-lg border border-white/10">
+      <div className="relative z-0 h-[300px] overflow-hidden rounded-lg border border-white/10">
         <MapCanvas markers={markers} autoFit={true} />
       </div>
     </div>
