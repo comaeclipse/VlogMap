@@ -73,12 +73,53 @@ export default function TaxonomyManagerPage() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
   const [updatingMarkerId, setUpdatingMarkerId] = useState<number | null>(null)
   const [isCreateCityOpen, setIsCreateCityOpen] = useState(false)
+  const [isCreateMarkerOpen, setIsCreateMarkerOpen] = useState(false)
+  const [isEditMarkerOpen, setIsEditMarkerOpen] = useState(false)
+  const [editingMarkerId, setEditingMarkerId] = useState<number | null>(null)
   const [newCityData, setNewCityData] = useState({
     name: "",
     country: "",
     district: "",
     isNewCountry: false,
     newCountryName: ""
+  })
+  const [newMarkerData, setNewMarkerData] = useState({
+    title: "",
+    creator: "Admin",
+    latitude: "",
+    longitude: "",
+    city: "",
+    district: "",
+    country: "",
+    description: "",
+    videoUrl: "",
+    channelUrl: "",
+    screenshotUrl: "",
+    summary: "",
+    type: "landmark",
+    parentCityId: "none",
+    timestamp: "",
+    locationName: "",
+    videoPublishedAt: "",
+  })
+  const [editMarkerData, setEditMarkerData] = useState({
+    title: "",
+    creator: "",
+    latitude: "",
+    longitude: "",
+    city: "",
+    district: "",
+    country: "",
+    description: "",
+    videoUrl: "",
+    channelUrl: "",
+    screenshotUrl: "",
+    summary: "",
+    type: "none",
+    parentCityId: "none",
+    timestamp: "",
+    locationName: "",
+    videoPublishedAt: "",
   })
 
 
@@ -216,11 +257,14 @@ export default function TaxonomyManagerPage() {
   ) => {
     setUpdatingMarkerId(markerId)
     try {
-      const res = await fetch(`/api/markers/${markerId}`, {
+      const res = await fetch("/api/markers/bulk-update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(updates),
+        body: JSON.stringify({
+          markerIds: [markerId],
+          updates,
+        }),
       })
 
       if (!res.ok) {
@@ -236,6 +280,213 @@ export default function TaxonomyManagerPage() {
       console.error(error)
     } finally {
       setUpdatingMarkerId(null)
+    }
+  }
+
+  useEffect(() => {
+    if (!isCreateMarkerOpen) return
+
+    if (selectedCity) {
+      setNewMarkerData((prev) => ({
+        ...prev,
+        city: selectedCity.city ?? "",
+        district: selectedCity.district ?? "",
+        country: selectedCity.country ?? "",
+        parentCityId: selectedCity.id.toString(),
+      }))
+    }
+  }, [isCreateMarkerOpen, selectedCity])
+
+  const openEditMarker = (marker: Marker) => {
+    setEditingMarkerId(marker.id)
+    setEditMarkerData({
+      title: marker.title ?? "",
+      creator: marker.creator ?? "",
+      latitude: marker.latitude?.toString() ?? "",
+      longitude: marker.longitude?.toString() ?? "",
+      city: marker.city ?? "",
+      district: marker.district ?? "",
+      country: marker.country ?? "",
+      description: marker.description ?? "",
+      videoUrl: marker.videoUrl ?? "",
+      channelUrl: marker.channelUrl ?? "",
+      screenshotUrl: marker.screenshotUrl ?? "",
+      summary: marker.summary ?? "",
+      type: marker.type ?? "none",
+      parentCityId: marker.parentCityId ? marker.parentCityId.toString() : "none",
+      timestamp: marker.timestamp ?? "",
+      locationName: marker.locationName ?? "",
+      videoPublishedAt: marker.videoPublishedAt ?? "",
+    })
+    setIsEditMarkerOpen(true)
+  }
+
+  const saveMarker = async () => {
+    if (!editingMarkerId) return
+
+    if (!editMarkerData.title || !editMarkerData.creator) {
+      toast.error("Title and creator are required")
+      return
+    }
+
+    if (!editMarkerData.latitude || !editMarkerData.longitude) {
+      toast.error("Latitude and longitude are required")
+      return
+    }
+
+    const payload = {
+      title: editMarkerData.title,
+      creator: editMarkerData.creator,
+      latitude: editMarkerData.latitude,
+      longitude: editMarkerData.longitude,
+      city: editMarkerData.city,
+      district: editMarkerData.district,
+      country: editMarkerData.country,
+      description: editMarkerData.description,
+      videoUrl: editMarkerData.videoUrl,
+      channelUrl: editMarkerData.channelUrl,
+      screenshotUrl: editMarkerData.screenshotUrl,
+      summary: editMarkerData.summary,
+      type: editMarkerData.type === "none" ? undefined : editMarkerData.type,
+      parentCityId:
+        editMarkerData.parentCityId === "none"
+          ? null
+          : parseInt(editMarkerData.parentCityId, 10),
+      timestamp: editMarkerData.timestamp,
+      locationName: editMarkerData.locationName,
+      videoPublishedAt: editMarkerData.videoPublishedAt,
+    }
+
+    setUpdatingMarkerId(editingMarkerId)
+    try {
+      const res = await fetch(`/api/markers/${editingMarkerId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Failed to update marker")
+        return
+      }
+
+      toast.success("Marker updated")
+      setIsEditMarkerOpen(false)
+      setEditingMarkerId(null)
+      await mutate()
+    } catch (error) {
+      toast.error("Failed to update marker")
+      console.error(error)
+    } finally {
+      setUpdatingMarkerId(null)
+    }
+  }
+
+  const deleteMarker = async (markerId: number) => {
+    if (!confirm("Delete this marker? This cannot be undone.")) return
+
+    setUpdatingMarkerId(markerId)
+    try {
+      const res = await fetch(`/api/markers/${markerId}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Failed to delete marker")
+        return
+      }
+
+      toast.success("Marker deleted")
+      await mutate()
+    } catch (error) {
+      toast.error("Failed to delete marker")
+      console.error(error)
+    } finally {
+      setUpdatingMarkerId(null)
+    }
+  }
+
+  const createMarker = async () => {
+    if (!newMarkerData.title || !newMarkerData.creator) {
+      toast.error("Title and creator are required")
+      return
+    }
+
+    if (!newMarkerData.latitude || !newMarkerData.longitude) {
+      toast.error("Latitude and longitude are required")
+      return
+    }
+
+    const payload = {
+      title: newMarkerData.title,
+      creator: newMarkerData.creator,
+      latitude: newMarkerData.latitude,
+      longitude: newMarkerData.longitude,
+      city: newMarkerData.city,
+      district: newMarkerData.district,
+      country: newMarkerData.country,
+      description: newMarkerData.description,
+      videoUrl: newMarkerData.videoUrl,
+      channelUrl: newMarkerData.channelUrl,
+      screenshotUrl: newMarkerData.screenshotUrl,
+      summary: newMarkerData.summary,
+      type: newMarkerData.type === "none" ? undefined : newMarkerData.type,
+      parentCityId:
+        newMarkerData.parentCityId === "none"
+          ? null
+          : parseInt(newMarkerData.parentCityId, 10),
+      timestamp: newMarkerData.timestamp,
+      locationName: newMarkerData.locationName,
+      videoPublishedAt: newMarkerData.videoPublishedAt,
+    }
+
+    setBulkActionLoading(true)
+    try {
+      const res = await fetch("/api/markers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Failed to create marker")
+        return
+      }
+
+      toast.success("Marker created")
+      setIsCreateMarkerOpen(false)
+      setNewMarkerData({
+        title: "",
+        creator: "Admin",
+        latitude: "",
+        longitude: "",
+        city: "",
+        district: "",
+        country: "",
+        description: "",
+        videoUrl: "",
+        channelUrl: "",
+        screenshotUrl: "",
+        summary: "",
+        type: "landmark",
+        parentCityId: "none",
+        timestamp: "",
+        locationName: "",
+        videoPublishedAt: "",
+      })
+
+      await mutate()
+    } catch (error) {
+      toast.error("Failed to create marker")
+      console.error(error)
+    } finally {
+      setBulkActionLoading(false)
     }
   }
 
@@ -396,7 +647,7 @@ export default function TaxonomyManagerPage() {
       </header>
 
       {/* Main content */}
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex flex-1 min-h-0 overflow-hidden">
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
@@ -412,7 +663,7 @@ export default function TaxonomyManagerPage() {
           </div>
         ) : (
           <>
-            <div className="flex h-full">
+            <div className="flex flex-1 min-h-0">
               {/* Column 1: Countries */}
               <div className="flex w-64 flex-col border-r border-white/10 bg-slate-900/30">
                 <div className="flex items-center justify-between border-b border-white/10 p-3">
@@ -554,12 +805,12 @@ export default function TaxonomyManagerPage() {
                             />
                           </div>
                         </div>
-                        <DialogFooter>
-                          <Button variant="ghost" onClick={() => setIsCreateCityOpen(false)}>Cancel</Button>
-                          <Button onClick={createCity}>Create City</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <DialogFooter>
+                      <Button variant="ghost" onClick={() => setIsCreateCityOpen(false)}>Cancel</Button>
+                      <Button onClick={createCity}>Create City</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                   </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -676,12 +927,144 @@ export default function TaxonomyManagerPage() {
                 {/* Panel header */}
                 <div className="border-b border-white/10 bg-slate-900/50 p-4">
                   <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-lg font-semibold">{getPanelTitle()}</h2>
-                    {displayedMarkers.length > 0 && (
-                      <span className="text-sm text-slate-400">
-                        {displayedMarkers.length} marker(s)
-                      </span>
-                    )}
+                    <div>
+                      <h2 className="text-lg font-semibold">{getPanelTitle()}</h2>
+                      {displayedMarkers.length > 0 && (
+                        <span className="text-sm text-slate-400">
+                          {displayedMarkers.length} marker(s)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedCity && (
+                        <Button variant="outline" size="sm" onClick={() => openEditMarker(selectedCity)}>
+                          Edit City
+                        </Button>
+                      )}
+                      <Dialog open={isCreateMarkerOpen} onOpenChange={setIsCreateMarkerOpen}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">Add Marker</Button>
+                        </DialogTrigger>
+                        <DialogContent className="border-white/10 bg-slate-900 text-slate-50">
+                          <DialogHeader>
+                            <DialogTitle>Add Marker</DialogTitle>
+                            <DialogDescription>
+                              Create a new city or landmark marker.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-title">Title</Label>
+                              <Input
+                                id="new-title"
+                                value={newMarkerData.title}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, title: e.target.value }))}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-creator">Creator</Label>
+                              <Input
+                                id="new-creator"
+                                value={newMarkerData.creator}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, creator: e.target.value }))}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-type">Type</Label>
+                              <Select
+                                value={newMarkerData.type}
+                                onValueChange={(value) => setNewMarkerData(prev => ({ ...prev, type: value }))}
+                              >
+                                <SelectTrigger id="new-type">
+                                  <SelectValue placeholder="Select type..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="city">City</SelectItem>
+                                  <SelectItem value="landmark">Landmark</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="grid gap-2">
+                                <Label htmlFor="new-lat">Latitude</Label>
+                                <Input
+                                  id="new-lat"
+                                  value={newMarkerData.latitude}
+                                  onChange={(e) => setNewMarkerData(prev => ({ ...prev, latitude: e.target.value }))}
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="new-lng">Longitude</Label>
+                                <Input
+                                  id="new-lng"
+                                  value={newMarkerData.longitude}
+                                  onChange={(e) => setNewMarkerData(prev => ({ ...prev, longitude: e.target.value }))}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-city">City</Label>
+                              <Input
+                                id="new-city"
+                                value={newMarkerData.city}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, city: e.target.value }))}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-country">Country</Label>
+                              <Input
+                                id="new-country"
+                                value={newMarkerData.country}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, country: e.target.value }))}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-district">District</Label>
+                              <Input
+                                id="new-district"
+                                value={newMarkerData.district}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, district: e.target.value }))}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-parent">Parent City</Label>
+                              <Select
+                                value={newMarkerData.parentCityId}
+                                onValueChange={(value) => setNewMarkerData(prev => ({ ...prev, parentCityId: value }))}
+                              >
+                                <SelectTrigger id="new-parent">
+                                  <SelectValue placeholder="No parent city" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No parent city</SelectItem>
+                                  {cityMarkers.map((city) => (
+                                    <SelectItem key={city.id} value={city.id.toString()}>
+                                      {city.city || city.locationName || "Unknown"} ({city.creator})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="new-location-name">Location Name</Label>
+                              <Input
+                                id="new-location-name"
+                                value={newMarkerData.locationName}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, locationName: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="ghost" onClick={() => setIsCreateMarkerOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button onClick={createMarker} disabled={bulkActionLoading}>
+                              {bulkActionLoading ? "Creating..." : "Create Marker"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
 
                   {/* Search and bulk actions */}
@@ -833,6 +1216,23 @@ export default function TaxonomyManagerPage() {
                                 <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                               )}
 
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditMarker(marker)}
+                                className="h-8 text-xs"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteMarker(marker.id)}
+                                className="h-8 text-xs text-red-300 hover:text-red-200"
+                              >
+                                Delete
+                              </Button>
+
                               {/* Type selector */}
                               <Select
                                 value={marker.type || "none"}
@@ -887,6 +1287,126 @@ export default function TaxonomyManagerPage() {
           </>
         )}
       </main>
+
+      <Dialog open={isEditMarkerOpen} onOpenChange={setIsEditMarkerOpen}>
+        <DialogContent className="border-white/10 bg-slate-900 text-slate-50">
+          <DialogHeader>
+            <DialogTitle>Edit Marker</DialogTitle>
+            <DialogDescription>
+              Update marker metadata and location details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={editMarkerData.title}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-creator">Creator</Label>
+              <Input
+                id="edit-creator"
+                value={editMarkerData.creator}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, creator: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-type">Type</Label>
+              <Select
+                value={editMarkerData.type}
+                onValueChange={(value) => setEditMarkerData(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger id="edit-type">
+                  <SelectValue placeholder="Select type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="city">City</SelectItem>
+                  <SelectItem value="landmark">Landmark</SelectItem>
+                  <SelectItem value="none">Unspecified</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-lat">Latitude</Label>
+                <Input
+                  id="edit-lat"
+                  value={editMarkerData.latitude}
+                  onChange={(e) => setEditMarkerData(prev => ({ ...prev, latitude: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-lng">Longitude</Label>
+                <Input
+                  id="edit-lng"
+                  value={editMarkerData.longitude}
+                  onChange={(e) => setEditMarkerData(prev => ({ ...prev, longitude: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-city">City</Label>
+              <Input
+                id="edit-city"
+                value={editMarkerData.city}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, city: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-country">Country</Label>
+              <Input
+                id="edit-country"
+                value={editMarkerData.country}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, country: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-district">District</Label>
+              <Input
+                id="edit-district"
+                value={editMarkerData.district}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, district: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-parent">Parent City</Label>
+              <Select
+                value={editMarkerData.parentCityId}
+                onValueChange={(value) => setEditMarkerData(prev => ({ ...prev, parentCityId: value }))}
+              >
+                <SelectTrigger id="edit-parent">
+                  <SelectValue placeholder="No parent city" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No parent city</SelectItem>
+                  {cityMarkers.map((city) => (
+                    <SelectItem key={city.id} value={city.id.toString()}>
+                      {city.city || city.locationName || "Unknown"} ({city.creator})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-location-name">Location Name</Label>
+              <Input
+                id="edit-location-name"
+                value={editMarkerData.locationName}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, locationName: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditMarkerOpen(false)}>Cancel</Button>
+            <Button onClick={saveMarker} disabled={updatingMarkerId === editingMarkerId}>
+              {updatingMarkerId === editingMarkerId ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
