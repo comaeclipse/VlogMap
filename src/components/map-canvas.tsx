@@ -61,7 +61,23 @@ function Recenter({ marker }: { marker?: MarkerType | null }) {
 
   useEffect(() => {
     if (!marker) return
-    map.panTo([marker.latitude, marker.longitude], { animate: true, duration: 0.8 })
+
+    // Get the marker's pixel position
+    const markerLatLng = L.latLng(marker.latitude, marker.longitude)
+    const markerPoint = map.latLngToContainerPoint(markerLatLng)
+
+    // Calculate center offset to account for popup (move marker down in viewport)
+    const mapSize = map.getSize()
+    const offsetY = mapSize.y * 0.25 // Offset by 25% of map height
+
+    // Calculate the new center point
+    const targetPoint = L.point(mapSize.x / 2, mapSize.y / 2 + offsetY)
+    const targetLatLng = map.containerPointToLatLng(
+      L.point(markerPoint.x - targetPoint.x + mapSize.x / 2, markerPoint.y - targetPoint.y + mapSize.y / 2)
+    )
+
+    // Fly to the adjusted position
+    map.flyTo(targetLatLng, map.getZoom(), { animate: true, duration: 0.8 })
   }, [map, marker])
 
   return null

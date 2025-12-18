@@ -123,3 +123,8 @@
     @apply h-full bg-background text-foreground;
   }
 }
+
+/* Leaflet popup customizations */
+.leaflet-popup-content p {
+  margin: 0.3em 0;
+}
