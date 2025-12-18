@@ -126,7 +126,17 @@ export async function POST(request: NextRequest) {
         [marker.id],
       )
 
-      return NextResponse.json(mapMarkerRow(updatedRows[0]), { status: 201 })
+      const updatedMarker = updatedRows[0]
+
+      // Update location name if provided and marker has a locationId
+      if (payload.locationName && updatedMarker.location_id) {
+        await query(
+          `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
+          [payload.locationName, updatedMarker.location_id]
+        )
+      }
+
+      return NextResponse.json(mapMarkerRow(updatedMarker), { status: 201 })
     } catch (locationError) {
       console.error("Failed to assign location ID:", locationError)
       // Return marker without location_id if assignment fails

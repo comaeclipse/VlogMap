@@ -361,6 +361,7 @@ export default function EditVideoPage({
             channelUrl: videoInfo.channelUrl || undefined,
             videoUrl,
             videoPublishedAt: videoInfo.videoPublishedAt || undefined,
+            summary: videoInfo.summary || undefined,
             latitude: newLoc.latitude,
             longitude: newLoc.longitude,
             city: newLoc.city || undefined,
@@ -369,6 +370,7 @@ export default function EditVideoPage({
             parentCityId: newLoc.parentCityId || undefined,
             timestamp: newLoc.timestamp || undefined,
             screenshotUrl: newLoc.screenshotUrl || undefined,
+            locationName: newLoc.locationName || undefined,
           }),
         })
 

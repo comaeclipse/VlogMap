@@ -20,6 +20,7 @@ export const markerSchema = z.object({
   type: z.enum(['city', 'landmark']).optional().or(z.literal("").transform(() => undefined)),
   parentCityId: z.coerce.number().int().positive().optional().nullable().or(z.literal("").transform(() => undefined)),
   timestamp: z.string().regex(/^(\d{1,2}:)?\d{1,2}:\d{2}$/).optional().or(z.literal("").transform(() => undefined)),
+  locationName: z.string().max(200).optional().or(z.literal("").transform(() => undefined)),
 })
 
 export type MarkerPayload = z.infer<typeof markerSchema>
