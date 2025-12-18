@@ -725,9 +725,9 @@ export default function AdminPage() {
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     <SelectItem value="none">No parent city</SelectItem>
-                    {cityMarkers.map((city) => (
-                      <SelectItem key={city.id} value={city.id.toString()}>
-                        {city.creator} - {city.title}
+                    {cityMarkers.map((cm) => (
+                      <SelectItem key={cm.id} value={cm.id.toString()}>
+                        {cm.city || cm.locationName || "Unknown"} ({cm.creator})
                       </SelectItem>
                     ))}
                   </SelectContent>
