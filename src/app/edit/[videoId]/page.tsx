@@ -4,7 +4,7 @@ import { useEffect, useState, use, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, Upload, Trash2, Save, Loader2, Plus, X } from "lucide-react"
+import { ArrowLeft, Upload, Trash2, Save, Loader2, Plus, X, RefreshCw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -105,6 +105,7 @@ export default function EditVideoPage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [locationToDelete, setLocationToDelete] = useState<{ id: number; isNew: boolean } | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [geoLoadingFor, setGeoLoadingFor] = useState<number | null>(null)
 
   // Filter markers by videoId
   useEffect(() => {
@@ -275,6 +276,47 @@ export default function EditVideoPage({
       setDeleting(false)
       setDeleteDialogOpen(false)
       setLocationToDelete(null)
+    }
+  }
+
+  const fetchCityForNew = async (locationId: number) => {
+    const location = newLocations.find((l) => l.id === locationId)
+    if (!location || isNaN(location.latitude) || isNaN(location.longitude)) {
+      toast.error("Enter coordinates first")
+      return
+    }
+    if (location.latitude === 0 && location.longitude === 0) {
+      toast.error("Enter coordinates first")
+      return
+    }
+
+    setGeoLoadingFor(locationId)
+    try {
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ latitude: location.latitude, longitude: location.longitude }),
+      })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Could not lookup location")
+        return
+      }
+      const payload = (await res.json()) as {
+        city?: string | null
+        district?: string | null
+        country?: string | null
+      }
+      if (payload.city || payload.district || payload.country) {
+        updateNewLocation(locationId, "city", payload.city || "")
+        const parts = [payload.city, payload.district, payload.country].filter(Boolean)
+        toast.success(`Location: ${parts.join(", ")}`)
+      } else {
+        toast.error("Location not found")
+      }
+    } finally {
+      setGeoLoadingFor(null)
     }
   }
 
@@ -791,15 +833,29 @@ export default function EditVideoPage({
                       }
                     />
                   </div>
-                  <div>
-                    <Label htmlFor={`new-city-${location.id}`}>City</Label>
-                    <Input
-                      id={`new-city-${location.id}`}
-                      value={location.city}
-                      onChange={(e) =>
-                        updateNewLocation(location.id, "city", e.target.value)
-                      }
-                    />
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`new-city-${location.id}`}>City (auto-filled)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id={`new-city-${location.id}`}
+                        value={location.city}
+                        onChange={(e) =>
+                          updateNewLocation(location.id, "city", e.target.value)
+                        }
+                        className="flex-1"
+                        placeholder="Click refresh to lookup from coordinates"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => fetchCityForNew(location.id)}
+                        disabled={geoLoadingFor === location.id}
+                        title="Lookup location by coordinates"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${geoLoadingFor === location.id ? "animate-spin" : ""}`} />
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor={`new-type-${location.id}`}>Location Type</Label>
