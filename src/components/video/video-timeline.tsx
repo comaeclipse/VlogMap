@@ -79,7 +79,7 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       )}
                     </div>
                     
-                    {marker.locationName && marker.type === 'landmark' && (
+                    {marker.locationName && (
                       <div className="mt-1 flex items-center gap-2">
                         <Landmark className="h-4 w-4 text-amber-400" />
                         {marker.locationId ? (

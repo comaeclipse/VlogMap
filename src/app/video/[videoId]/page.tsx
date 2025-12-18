@@ -70,18 +70,31 @@ export default async function VideoDetailPage({
   const { videoId } = await params
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
 
-  // Fetch markers for this video
-  const { rows } = await query<MarkerRow>(
-    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-     FROM explorer_markers
-     WHERE video_url ILIKE $1
-     ORDER BY 
-       CASE 
-         WHEN timestamp IS NOT NULL THEN 0 
-         ELSE 1 
+  // Fetch markers for this video with location names
+  type MarkerWithLocation = MarkerRow & {
+    location_name: string | null
+    parent_city_name: string | null
+  }
+
+  const { rows } = await query<MarkerWithLocation>(
+    `SELECT
+       m.id, m.title, m.creator, m.channel_url, m.video_url, m.description,
+       m.latitude, m.longitude, m.city, m.district, m.country,
+       m.video_published_at, m.screenshot_url, m.summary, m.location_id,
+       m.type, m.parent_city_id, m.timestamp, m.created_at,
+       l.name as location_name,
+       p.title as parent_city_name
+     FROM explorer_markers m
+     LEFT JOIN locations l ON m.location_id = l.id
+     LEFT JOIN explorer_markers p ON m.parent_city_id = p.id
+     WHERE m.video_url ILIKE $1
+     ORDER BY
+       CASE
+         WHEN m.timestamp IS NOT NULL THEN 0
+         ELSE 1
        END,
-       timestamp ASC NULLS LAST,
-       created_at ASC`,
+       m.timestamp ASC NULLS LAST,
+       m.created_at ASC`,
     [`%${videoId}%`]
   )
 
@@ -89,7 +102,11 @@ export default async function VideoDetailPage({
     notFound()
   }
 
-  const markers = rows.map(mapMarkerRow)
+  const markers = rows.map((row) => ({
+    ...mapMarkerRow(row),
+    locationName: row.location_name,
+    parentCityName: row.parent_city_name,
+  }))
   const canonicalVideoUrl = markers[0]?.videoUrl || videoUrl
 
   // Get location ID from first marker
