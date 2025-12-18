@@ -4,7 +4,7 @@ import { useEffect, useState, use, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, Upload, Trash2, Save, Loader2 } from "lucide-react"
+import { ArrowLeft, Upload, Trash2, Save, Loader2, Plus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { RichTextEditor } from "@/components/rich-text-editor"
 import { extractYouTubeId } from "@/lib/youtube"
 import type { Marker } from "@/types/markers"
@@ -92,6 +100,11 @@ export default function EditVideoPage({
   } | null>(null)
   const [uploadingFor, setUploadingFor] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [newLocations, setNewLocations] = useState<LocationEdit[]>([])
+  const [nextTempId, setNextTempId] = useState(-1)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [locationToDelete, setLocationToDelete] = useState<{ id: number; isNew: boolean } | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Filter markers by videoId
   useEffect(() => {
@@ -187,6 +200,84 @@ export default function EditVideoPage({
     )
   }
 
+  const handleAddLocation = () => {
+    const tempId = nextTempId
+    setNextTempId((prev) => prev - 1)
+    setNewLocations((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        latitude: 0,
+        longitude: 0,
+        description: "",
+        city: "",
+        screenshotUrl: "",
+        locationId: null,
+        locationName: null,
+        type: null,
+        parentCityId: null,
+        timestamp: "",
+      },
+    ])
+  }
+
+  const updateNewLocation = (
+    id: number,
+    field: keyof LocationEdit,
+    value: string | number | null | undefined
+  ) => {
+    setNewLocations((prev) =>
+      prev.map((loc) => (loc.id === id ? { ...loc, [field]: value } : loc))
+    )
+  }
+
+  const removeNewLocation = (id: number) => {
+    setNewLocations((prev) => prev.filter((loc) => loc.id !== id))
+  }
+
+  const handleDeleteClick = (id: number, isNew: boolean) => {
+    setLocationToDelete({ id, isNew })
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!locationToDelete) return
+
+    if (locationToDelete.isNew) {
+      // Just remove from local state
+      removeNewLocation(locationToDelete.id)
+      setDeleteDialogOpen(false)
+      setLocationToDelete(null)
+      toast.success("Location removed")
+      return
+    }
+
+    // Delete from server
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/markers/${locationToDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error(error.error || "Failed to delete")
+      }
+
+      // Remove from local state
+      setLocations((prev) => prev.filter((loc) => loc.id !== locationToDelete.id))
+      await mutate()
+      toast.success("Location deleted")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Delete failed")
+    } finally {
+      setDeleting(false)
+      setDeleteDialogOpen(false)
+      setLocationToDelete(null)
+    }
+  }
+
   // Get city markers for parent dropdown
   const cityMarkers = allMarkers?.filter((m) => m.type === 'city') || []
 
@@ -216,31 +307,66 @@ export default function EditVideoPage({
         return Infinity
       }
 
-      // Sort locations by timestamp before saving
+      // Create new locations first
+      for (const newLoc of newLocations) {
+        const createRes = await fetch("/api/markers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            title: videoInfo.title,
+            creator: videoInfo.creator,
+            channelUrl: videoInfo.channelUrl || undefined,
+            videoUrl,
+            videoPublishedAt: videoInfo.videoPublishedAt || undefined,
+            latitude: newLoc.latitude,
+            longitude: newLoc.longitude,
+            city: newLoc.city || undefined,
+            description: newLoc.description || undefined,
+            type: newLoc.type || undefined,
+            parentCityId: newLoc.parentCityId || undefined,
+            timestamp: newLoc.timestamp || undefined,
+            screenshotUrl: newLoc.screenshotUrl || undefined,
+          }),
+        })
+
+        if (!createRes.ok) {
+          const error = await createRes.json().catch(() => ({}))
+          throw new Error(error.error || "Failed to create new location")
+        }
+      }
+
+      // Clear new locations after creation
+      setNewLocations([])
+
+      // Sort existing locations by timestamp before saving
       const sortedLocations = [...locations].sort((a, b) => {
         return timestampToSeconds(a.timestamp) - timestampToSeconds(b.timestamp)
       })
 
-      const res = await fetch("/api/markers/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          videoUrl,
-          updates: sortedLocations,
-          videoMetadata: {
-            title: videoInfo.title,
-            creator: videoInfo.creator,
-            channelUrl: videoInfo.channelUrl || undefined,
-            videoPublishedAt: videoInfo.videoPublishedAt || undefined,
-            summary: videoInfo.summary || undefined,
-          },
-        }),
-      })
+      // Batch update existing locations (only if there are any)
+      if (sortedLocations.length > 0) {
+        const res = await fetch("/api/markers/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            videoUrl,
+            updates: sortedLocations,
+            videoMetadata: {
+              title: videoInfo.title,
+              creator: videoInfo.creator,
+              channelUrl: videoInfo.channelUrl || undefined,
+              videoPublishedAt: videoInfo.videoPublishedAt || undefined,
+              summary: videoInfo.summary || undefined,
+            },
+          }),
+        })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Failed to save")
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || "Failed to save")
+        }
       }
 
       await mutate()
@@ -357,16 +483,26 @@ export default function EditVideoPage({
               key={location.id}
               className="rounded-xl border border-white/10 bg-slate-900/60 p-5"
             >
-              <h3 className="mb-4 text-base font-semibold">
-                {location.locationName ? (
-                  <>
-                    Location {index + 1}:{" "}
-                    <span className="text-blue-400">{location.locationName}</span>
-                  </>
-                ) : (
-                  `Location ${index + 1}`
-                )}
-              </h3>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold">
+                  {location.locationName ? (
+                    <>
+                      Location {index + 1}:{" "}
+                      <span className="text-blue-400">{location.locationName}</span>
+                    </>
+                  ) : (
+                    `Location ${index + 1}`
+                  )}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  onClick={() => handleDeleteClick(location.id, false)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
@@ -589,6 +725,189 @@ export default function EditVideoPage({
               </div>
             </div>
           ))}
+
+          {/* New Locations */}
+          {newLocations.map((location, index) => (
+            <div
+              key={location.id}
+              className="rounded-xl border border-dashed border-green-500/30 bg-green-500/5 p-5"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-green-400">
+                  New Location {index + 1}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-400 hover:text-slate-300"
+                  onClick={() => handleDeleteClick(location.id, true)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Paste Coordinates */}
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`coords-${location.id}`}>Paste Coordinates</Label>
+                    <Input
+                      id={`coords-${location.id}`}
+                      placeholder="55.8828, 26.5463"
+                      onChange={(e) => {
+                        const match = e.target.value.match(
+                          /(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)/
+                        )
+                        if (match) {
+                          updateNewLocation(location.id, "latitude", parseFloat(match[1]))
+                          updateNewLocation(location.id, "longitude", parseFloat(match[2]))
+                        }
+                      }}
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      Paste &quot;lat, lng&quot; to auto-fill below
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor={`new-lat-${location.id}`}>Latitude</Label>
+                    <Input
+                      id={`new-lat-${location.id}`}
+                      type="number"
+                      step="0.0001"
+                      value={location.latitude}
+                      onChange={(e) =>
+                        updateNewLocation(location.id, "latitude", Number(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`new-lng-${location.id}`}>Longitude</Label>
+                    <Input
+                      id={`new-lng-${location.id}`}
+                      type="number"
+                      step="0.0001"
+                      value={location.longitude}
+                      onChange={(e) =>
+                        updateNewLocation(location.id, "longitude", Number(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`new-city-${location.id}`}>City</Label>
+                    <Input
+                      id={`new-city-${location.id}`}
+                      value={location.city}
+                      onChange={(e) =>
+                        updateNewLocation(location.id, "city", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`new-type-${location.id}`}>Location Type</Label>
+                    <Select
+                      value={location.type || "unspecified"}
+                      onValueChange={(value) => {
+                        const newType = value === "unspecified" ? null : (value as 'city' | 'landmark')
+                        updateNewLocation(location.id, "type", newType)
+                        if (newType !== 'landmark') {
+                          updateNewLocation(location.id, "parentCityId", null)
+                        }
+                      }}
+                    >
+                      <SelectTrigger id={`new-type-${location.id}`}>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unspecified">Unspecified</SelectItem>
+                        <SelectItem value="city">City</SelectItem>
+                        <SelectItem value="landmark">Landmark</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor={`new-timestamp-${location.id}`}>
+                      Timestamp
+                      <span className="ml-1 text-xs font-normal text-slate-400">
+                        (hh:mm:ss or mm:ss)
+                      </span>
+                    </Label>
+                    <Input
+                      id={`new-timestamp-${location.id}`}
+                      value={location.timestamp || ""}
+                      onChange={(e) =>
+                        updateNewLocation(location.id, "timestamp", e.target.value)
+                      }
+                      placeholder="0:00"
+                      pattern="^(\d{1,2}:)?\d{1,2}:\d{2}$"
+                    />
+                  </div>
+                  {location.type === 'landmark' && (
+                    <div className="sm:col-span-2">
+                      <Label htmlFor={`new-parent-${location.id}`}>Parent City (Optional)</Label>
+                      <Select
+                        value={location.parentCityId?.toString() || "none"}
+                        onValueChange={(value) => {
+                          updateNewLocation(
+                            location.id,
+                            "parentCityId",
+                            value === "none" ? null : Number(value)
+                          )
+                        }}
+                      >
+                        <SelectTrigger id={`new-parent-${location.id}`}>
+                          <SelectValue placeholder="Select parent city" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          <SelectItem value="none">No parent city</SelectItem>
+                          {cityMarkers.map((city) => (
+                            <SelectItem key={city.id} value={city.id.toString()}>
+                              {city.creator} - {city.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`new-name-${location.id}`}>
+                      Location Name
+                      <span className="ml-2 text-xs font-normal text-slate-400">
+                        (optional - e.g., "Lenin Statue", "Trinity Site")
+                      </span>
+                    </Label>
+                    <Input
+                      id={`new-name-${location.id}`}
+                      value={location.locationName || ""}
+                      onChange={(e) =>
+                        updateNewLocation(location.id, "locationName", e.target.value)
+                      }
+                      placeholder="Leave blank for generic locations"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`new-desc-${location.id}`}>Description</Label>
+                    <Textarea
+                      id={`new-desc-${location.id}`}
+                      value={location.description}
+                      onChange={(e) =>
+                        updateNewLocation(location.id, "description", e.target.value)
+                      }
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Add Location Button */}
+          <Button
+            variant="outline"
+            className="w-full border-dashed"
+            onClick={handleAddLocation}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Location
+          </Button>
         </div>
 
         {/* Save Button */}
@@ -611,6 +930,46 @@ export default function EditVideoPage({
           </Button>
         </div>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Location</DialogTitle>
+            <DialogDescription>
+              {locationToDelete?.isNew
+                ? "Remove this unsaved location?"
+                : "Are you sure you want to delete this location? This action cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setLocationToDelete(null)
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
