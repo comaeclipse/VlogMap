@@ -85,7 +85,7 @@ export default function TaxonomyManagerPage() {
   })
   const [newMarkerData, setNewMarkerData] = useState({
     title: "",
-    creator: "Admin",
+    creatorName: "Admin",
     latitude: "",
     longitude: "",
     city: "",
@@ -104,7 +104,7 @@ export default function TaxonomyManagerPage() {
   })
   const [editMarkerData, setEditMarkerData] = useState({
     title: "",
-    creator: "",
+    creatorName: "",
     latitude: "",
     longitude: "",
     city: "",
@@ -463,7 +463,7 @@ export default function TaxonomyManagerPage() {
       setIsCreateMarkerOpen(false)
       setNewMarkerData({
         title: "",
-        creator: "Admin",
+        creatorName: "Admin",
         latitude: "",
         longitude: "",
         city: "",
@@ -560,7 +560,7 @@ export default function TaxonomyManagerPage() {
           // The schema in route.ts inserts them. Let's assume 0 is fine for "abstract" cities,
           // or we should add lat/long inputs. For now default to 0.
           longitude: 0,
-          creator: authData?.authenticated ? "Admin" : "System", // Or fetch user name
+          creatorName: authData?.authenticated ? "Admin" : "System", // Or fetch user name
           description: "Created via Taxonomy Manager"
         }),
       })
@@ -966,7 +966,7 @@ export default function TaxonomyManagerPage() {
                               <Input
                                 id="new-creator"
                                 value={newMarkerData.creatorName}
-                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, creator: e.target.value }))}
+                                onChange={(e) => setNewMarkerData(prev => ({ ...prev, creatorName: e.target.value }))}
                               />
                             </div>
                             <div className="grid gap-2">
@@ -1310,7 +1310,7 @@ export default function TaxonomyManagerPage() {
               <Input
                 id="edit-creator"
                 value={editMarkerData.creatorName}
-                onChange={(e) => setEditMarkerData(prev => ({ ...prev, creator: e.target.value }))}
+                onChange={(e) => setEditMarkerData(prev => ({ ...prev, creatorName: e.target.value }))}
               />
             </div>
             <div className="grid gap-2">

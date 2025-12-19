@@ -46,7 +46,7 @@ const fetcherWithVideo = ([url, videoUrl]: [string, string]) =>
 
 const emptyMarker: MarkerInput = {
   title: "",
-  creator: "",
+  creatorName: "",
   channelUrl: "",
   videoUrl: "",
   description: "",
@@ -473,7 +473,7 @@ export default function AdminPage() {
                 list="creator-options"
                 placeholder="Channel name"
                 value={form.creatorName}
-                onChange={(e) => setForm({ ...form, creator: e.target.value })}
+                onChange={(e) => setForm({ ...form, creatorName: e.target.value })}
               />
               <datalist id="creator-options">
                 {creatorOptions.map((name) => (

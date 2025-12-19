@@ -93,7 +93,7 @@ export default function EditVideoPage({
   const [locations, setLocations] = useState<LocationEdit[]>([])
   const [videoInfo, setVideoInfo] = useState<{
     title: string
-    creator: string
+    creatorName: string
     channelUrl: string
     videoPublishedAt: string
     summary: string
@@ -467,7 +467,7 @@ export default function EditVideoPage({
                 id="video-creator"
                 value={videoInfo.creatorName}
                 onChange={(e) =>
-                  setVideoInfo({ ...videoInfo, creator: e.target.value })
+                  setVideoInfo({ ...videoInfo, creatorName: e.target.value })
                 }
                 placeholder="Creator name"
               />
