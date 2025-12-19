@@ -11,7 +11,23 @@
       "Bash(curl:*)",
       "Bash(npm run dev:*)",
       "Bash(git fetch:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(uvx:*)",
+      "mcp__plugin_greptile_greptile__list_pull_requests",
+      "mcp__plugin_greptile_greptile__list_custom_context",
+      "mcp__plugin_serena_serena__get_current_config",
+      "mcp__plugin_serena_serena__activate_project",
+      "mcp__plugin_serena_serena__list_dir",
+      "mcp__plugin_serena_serena__check_onboarding_performed",
+      "mcp__plugin_serena_serena__read_file",
+      "mcp__Neon__load_resource",
+      "mcp__Neon__list_organizations",
+      "mcp__Neon__list_projects",
+      "mcp__Neon__get_connection_string",
+      "mcp__Neon__get_database_tables",
+      "mcp__Neon__describe_table_schema",
+      "mcp__Neon__run_sql",
+      "mcp__plugin_serena_serena__search_for_pattern"
     ]
   }
 }

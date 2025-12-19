@@ -50,6 +50,47 @@ export async function findNearbyLocation(
 }
 
 /**
+ * Find or create a canonical city location
+ */
+export async function findOrCreateCity(
+  city: string,
+  country?: string | null,
+  district?: string | null,
+  latitude?: number,
+  longitude?: number,
+): Promise<string> {
+  // Try to find existing city
+  const { rows: existingCities } = await query<{ id: string }>(
+    `SELECT id FROM locations WHERE type = 'city' AND city = $1 LIMIT 1`,
+    [city]
+  )
+
+  if (existingCities.length > 0) {
+    return existingCities[0].id
+  }
+
+  // Create new city with hash-based ID
+  const cityId = `city-${Buffer.from(city + (country ?? '')).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
+  
+  await query(
+    `INSERT INTO locations (id, name, latitude, longitude, city, district, country, type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'city')
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      cityId,
+      city,
+      latitude ?? 0,
+      longitude ?? 0,
+      city,
+      district ?? null,
+      country ?? null,
+    ],
+  )
+
+  return cityId
+}
+
+/**
  * Create a new location with auto-generated ID
  */
 export async function createLocation(
@@ -70,17 +111,36 @@ export async function createLocation(
 
   const locationId = await generateUniqueLocationId(checkExists)
 
-  // Insert new location
+  // Find or create parent city if city is provided
+  let parentLocationId: string | null = null
+  if (city) {
+    parentLocationId = await findOrCreateCity(city, country, district, latitude, longitude)
+  }
+
+  // Count existing landmarks in this city for auto-naming
+  let locationName = 'Location 1'
+  if (parentLocationId) {
+    const { rows: countRows } = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM locations WHERE parent_location_id = $1`,
+      [parentLocationId]
+    )
+    const count = parseInt(countRows[0].count, 10) + 1
+    locationName = `Location ${count}`
+  }
+
+  // Insert new location as landmark
   await query(
-    `INSERT INTO locations (id, latitude, longitude, city, district, country)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO locations (id, name, latitude, longitude, city, district, country, type, parent_location_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'landmark', $8)`,
     [
       locationId,
+      locationName,
       latitude,
       longitude,
       city ?? null,
       district ?? null,
       country ?? null,
+      parentLocationId,
     ],
   )
 

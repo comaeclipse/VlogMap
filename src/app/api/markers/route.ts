@@ -8,6 +8,8 @@ import { assignLocationToMarker } from "@/lib/location-matching"
 
 type MarkerWithLocation = MarkerRow & { 
   location_name: string | null
+  location_type: string | null
+  parent_city_id: string | null
   parent_city_name: string | null
 }
 
@@ -24,11 +26,13 @@ export async function GET(request: NextRequest) {
         m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
         m.type, m.parent_city_id, m.timestamp, m.created_at,
         l.name as location_name,
-        p.title as parent_city_name
+        l.type as location_type,
+        l.parent_location_id as parent_city_id,
+        pc.name as parent_city_name
       FROM explorer_markers m
       JOIN creators c ON m.creator_id = c.id
       LEFT JOIN locations l ON m.location_id = l.id
-      LEFT JOIN explorer_markers p ON m.parent_city_id = p.id
+      LEFT JOIN locations pc ON l.parent_location_id = pc.id
       ${videoUrl ? "WHERE m.video_url = $1" : ""}
       ORDER BY m.created_at DESC
     `,
@@ -37,6 +41,8 @@ export async function GET(request: NextRequest) {
     const markers = rows.map((row) => ({
       ...mapMarkerRow(row),
       locationName: row.location_name,
+      locationType: row.location_type,
+      parentCityId: row.parent_city_id,
       parentCityName: row.parent_city_name,
     }))
     return NextResponse.json(markers)
