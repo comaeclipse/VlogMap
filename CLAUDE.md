@@ -22,6 +22,37 @@ Before implementing complex changes:
 3. **Create a plan**: Use Serena's semantic understanding to map out changes at the symbol level
 4. **Verify with memories**: Check `.serena/memories/` for project-specific context from onboarding
 
+### MANDATORY: Serena-First Editing Policy
+
+**NEVER fall back to standard editing tools (Read/Edit/Write) when Serena MCP is configured.** This is a strict requirement.
+
+When asked to use Serena for code changes:
+
+1. **Plan First, Implement Second**:
+   - Create a detailed implementation plan using Serena's symbol navigation tools
+   - Present the plan to the user for approval
+   - Only after approval, proceed with implementation
+
+2. **Use Semantic/Symbolic Tools Only**:
+   - For code editing, ONLY use Serena's symbolic tools: `find_symbol`, `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`
+   - Do NOT use line-based editing tools like standard `Edit` or `Write`
+   - If you encounter errors with Serena tools, investigate and resolve them - don't switch to alternatives
+
+3. **Be Persistent**:
+   - If a Serena tool isn't active or returns an error, investigate why
+   - Check available Serena tools and find the appropriate semantic approach
+   - Ask the user for clarification if needed
+   - Never silently fall back to non-Serena tools
+
+4. **Proper Planning Mode Usage**:
+   - When user requests "planning mode," create a comprehensive plan document
+   - Use `find_symbol`, `find_referencing_symbols`, `get_symbols_overview` to understand code structure
+   - Document all intended changes at the symbol level
+   - Get explicit approval before making any code modifications
+
+**Example Violation**: Using standard `Edit` tool after encountering an error with `insert_at_line`
+**Correct Approach**: Investigate available symbolic tools, use `find_symbol` to locate the function, then use appropriate Serena symbolic editing tools
+
 ### Best Practices with Serena
 
 - **Start from clean git state**: Makes it easier to review changes and use `git diff` for verification

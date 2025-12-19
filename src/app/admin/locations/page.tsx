@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
@@ -130,6 +130,9 @@ export default function TaxonomyManagerPage() {
     district: "",
   })
 
+  // Refs for scrollable containers
+  const countriesScrollRef = useRef<HTMLDivElement>(null)
+  const citiesScrollRef = useRef<HTMLDivElement>(null)
 
   // Derived data - now using locations
   const cityLocations = useMemo(
@@ -595,9 +598,10 @@ export default function TaxonomyManagerPage() {
                     Countries
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2">
+                <div ref={countriesScrollRef} className="flex-1 overflow-y-auto p-2">
                   <button
                     onClick={() => {
+                      countriesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
                       setSelectedCountry(null)
                       setSelectedCityId(null)
                     }}
@@ -610,6 +614,7 @@ export default function TaxonomyManagerPage() {
                   </button>
                   <button
                     onClick={() => {
+                      countriesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
                       setSelectedCountry("unassigned")
                       setSelectedCityId(null)
                     }}
@@ -625,6 +630,7 @@ export default function TaxonomyManagerPage() {
                     <button
                       key={country}
                       onClick={() => {
+                        countriesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
                         setSelectedCountry(country)
                         setSelectedCityId(null)
                       }}
@@ -748,13 +754,16 @@ export default function TaxonomyManagerPage() {
                 </div>
 
                 {/* Cities list */}
-                <div className="flex-1 overflow-y-auto bg-slate-950/50">
+                <div ref={citiesScrollRef} className="flex-1 overflow-y-auto bg-slate-950/50">
                   <div className="p-2">
                     <div className="space-y-1">
                       {filteredCities.map((city) => (
                         <button
                           key={city.id}
-                          onClick={() => selectCity(city.id)}
+                          onClick={() => {
+                            citiesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                            selectCity(city.id)
+                          }}
                           className={`w-full rounded-lg p-3 text-left transition-colors ${viewMode === "city" && selectedCityId === city.id
                             ? "bg-blue-600/20 ring-1 ring-blue-500/50"
                             : "hover:bg-slate-800/50"
