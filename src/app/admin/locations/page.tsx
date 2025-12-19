@@ -552,15 +552,15 @@ export default function TaxonomyManagerPage() {
           title: newCityData.name,
           city: newCityData.name, // Usually same as title for cities
           locationName: newCityData.name,
-          country: countryToUse || null,
-          district: newCityData.district || null,
+          country: countryToUse || "",
+          district: newCityData.district || "",
           type: "city",
           latitude: 0, // Placeholder, usually needed but for taxonomy maybe optional? 
           // Valid schema requires numbers. We should probably ask for lat/long or default to 0.
           // The schema in route.ts inserts them. Let's assume 0 is fine for "abstract" cities,
           // or we should add lat/long inputs. For now default to 0.
           longitude: 0,
-          creatorName: authData?.authenticated ? "Admin" : "System", // Or fetch user name
+          creatorName: "Admin",
           description: "Created via Taxonomy Manager"
         }),
       })
