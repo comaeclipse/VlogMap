@@ -1,5 +1,16 @@
 {
   "enabledPlugins": {
-    "greptile@claude-plugins-official": true
+    "greptile@claude-plugins-official": true,
+    "serena@claude-plugins-official": true
+  },
+  "pluginConfigs": {
+    "serena@claude-plugins-official": {
+      "mcpServers": {
+        "serena": {
+          "context": "claude-code",
+          "project": "C:\\Users\\Meeter\\Projects\\VlogMap"
+        }
+      }
+    }
   }
 }
