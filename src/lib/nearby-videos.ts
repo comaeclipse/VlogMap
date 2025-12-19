@@ -24,10 +24,11 @@ export async function findNearbyVideos(
 ): Promise<NearbyVideo[]> {
   // Fetch all markers except those from the current video
   const { rows } = await query<MarkerRow>(
-    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-     FROM explorer_markers
-     WHERE video_url IS NOT NULL AND video_url != $1
-     ORDER BY created_at DESC`,
+    `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+     FROM explorer_markers m
+     JOIN creators c ON m.creator_id = c.id
+     WHERE m.video_url IS NOT NULL AND m.video_url != $1
+     ORDER BY m.created_at DESC`,
     [currentVideoUrl]
   )
 

@@ -35,7 +35,7 @@ export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation 
               {video.title}
             </Link>
             <p className="text-sm text-slate-400 mt-1">
-              {video.creator} · {video.locationCount} location{video.locationCount !== 1 ? 's' : ''}
+              {video.creatorName} · {video.locationCount} location{video.locationCount !== 1 ? 's' : ''}
             </p>
             {video.videoPublishedAt && (
               <p className="text-xs text-slate-500 mt-1">

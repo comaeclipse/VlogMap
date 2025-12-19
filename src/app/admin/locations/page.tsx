@@ -178,7 +178,7 @@ export default function TaxonomyManagerPage() {
       (m) =>
         m.city?.toLowerCase().includes(query) ||
         m.locationName?.toLowerCase().includes(query) ||
-        m.creator?.toLowerCase().includes(query) ||
+        m.creatorName?.toLowerCase().includes(query) ||
         m.country?.toLowerCase().includes(query)
     )
   }, [cityMarkers, citySearch, selectedCountry])
@@ -301,7 +301,7 @@ export default function TaxonomyManagerPage() {
     setEditingMarkerId(marker.id)
     setEditMarkerData({
       title: marker.title ?? "",
-      creator: marker.creator ?? "",
+      creatorName: marker.creatorName ?? "",
       latitude: marker.latitude?.toString() ?? "",
       longitude: marker.longitude?.toString() ?? "",
       city: marker.city ?? "",
@@ -324,7 +324,7 @@ export default function TaxonomyManagerPage() {
   const saveMarker = async () => {
     if (!editingMarkerId) return
 
-    if (!editMarkerData.title || !editMarkerData.creator) {
+    if (!editMarkerData.title || !editMarkerData.creatorName) {
       toast.error("Title and creator are required")
       return
     }
@@ -336,7 +336,7 @@ export default function TaxonomyManagerPage() {
 
     const payload = {
       title: editMarkerData.title,
-      creator: editMarkerData.creator,
+      creatorName: editMarkerData.creatorName,
       latitude: editMarkerData.latitude,
       longitude: editMarkerData.longitude,
       city: editMarkerData.city,
@@ -411,7 +411,7 @@ export default function TaxonomyManagerPage() {
   }
 
   const createMarker = async () => {
-    if (!newMarkerData.title || !newMarkerData.creator) {
+    if (!newMarkerData.title || !newMarkerData.creatorName) {
       toast.error("Title and creator are required")
       return
     }
@@ -423,7 +423,7 @@ export default function TaxonomyManagerPage() {
 
     const payload = {
       title: newMarkerData.title,
-      creator: newMarkerData.creator,
+      creatorName: newMarkerData.creatorName,
       latitude: newMarkerData.latitude,
       longitude: newMarkerData.longitude,
       city: newMarkerData.city,
@@ -965,7 +965,7 @@ export default function TaxonomyManagerPage() {
                               <Label htmlFor="new-creator">Creator</Label>
                               <Input
                                 id="new-creator"
-                                value={newMarkerData.creator}
+                                value={newMarkerData.creatorName}
                                 onChange={(e) => setNewMarkerData(prev => ({ ...prev, creator: e.target.value }))}
                               />
                             </div>
@@ -1039,7 +1039,7 @@ export default function TaxonomyManagerPage() {
                                   <SelectItem value="none">No parent city</SelectItem>
                                   {cityMarkers.map((city) => (
                                     <SelectItem key={city.id} value={city.id.toString()}>
-                                      {city.city || city.locationName || "Unknown"} ({city.creator})
+                                      {city.city || city.locationName || "Unknown"} ({city.creatorName})
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1203,7 +1203,7 @@ export default function TaxonomyManagerPage() {
                                 </span>
                               </div>
                               <p className="mt-1 text-sm text-slate-400">
-                                {marker.creator} &bull; {marker.title}
+                                {marker.creatorName} &bull; {marker.title}
                               </p>
                               <p className="mt-0.5 font-mono text-xs text-slate-500">
                                 {marker.latitude.toFixed(5)}, {marker.longitude.toFixed(5)}
@@ -1269,7 +1269,7 @@ export default function TaxonomyManagerPage() {
                                     <SelectItem value="none">No parent city</SelectItem>
                                     {cityMarkers.map((city) => (
                                       <SelectItem key={city.id} value={city.id.toString()}>
-                                        {city.city || city.locationName || "Unknown"} ({city.creator})
+                                        {city.city || city.locationName || "Unknown"} ({city.creatorName})
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -1309,7 +1309,7 @@ export default function TaxonomyManagerPage() {
               <Label htmlFor="edit-creator">Creator</Label>
               <Input
                 id="edit-creator"
-                value={editMarkerData.creator}
+                value={editMarkerData.creatorName}
                 onChange={(e) => setEditMarkerData(prev => ({ ...prev, creator: e.target.value }))}
               />
             </div>

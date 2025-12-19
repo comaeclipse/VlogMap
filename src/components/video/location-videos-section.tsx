@@ -76,7 +76,7 @@ export function LocationVideosSection({
                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
                     <div className="flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      <span>{video.creator}</span>
+                      <span>{video.creatorName}</span>
                     </div>
                     {video.locationCount > 1 && (
                       <div className="flex items-center gap-1">

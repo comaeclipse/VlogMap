@@ -1,7 +1,8 @@
 export type Marker = {
   id: number
   title: string
-  creator: string
+  creatorId: number
+  creatorName: string
   channelUrl?: string | null
   videoUrl?: string | null
   description?: string | null
@@ -27,7 +28,7 @@ export type MarkerInput = Omit<Marker, "id" | "createdAt">
 export type VideoGroup = {
   videoUrl: string
   title: string
-  creator: string
+  creatorName: string
   channelUrl?: string | null
   videoPublishedAt?: string | null
   locationCount: number

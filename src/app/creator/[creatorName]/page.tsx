@@ -36,10 +36,11 @@ export default async function CreatorPage({
 
   // Fetch all markers for this creator
   const { rows } = await query<MarkerRow>(
-    `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, video_published_at, screenshot_url, summary, created_at
-     FROM explorer_markers
-     WHERE creator = $1
-     ORDER BY created_at DESC`,
+    `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.video_published_at, m.screenshot_url, m.summary, m.created_at
+     FROM explorer_markers m
+     JOIN creators c ON m.creator_id = c.id
+     WHERE c.name = $1
+     ORDER BY m.created_at DESC`,
     [decodedName]
   )
 

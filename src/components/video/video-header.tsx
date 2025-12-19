@@ -32,11 +32,11 @@ export function VideoHeader({ markers, videoId }: VideoHeaderProps) {
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
             <Link
-              href={`/creator/${encodeURIComponent(marker.creator)}`}
+              href={`/creator/${encodeURIComponent(marker.creatorName)}`}
               className="flex items-center gap-2 transition-colors hover:text-slate-200"
             >
               <User className="h-4 w-4" />
-              <span className="font-medium">{marker.creator}</span>
+              <span className="font-medium">{marker.creatorName}</span>
             </Link>
 
             {formattedDate && (

@@ -28,9 +28,10 @@ export async function generateMetadata({
 
   try {
     const { rows } = await query<MarkerRow>(
-      `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-       FROM explorer_markers
-       WHERE video_url ILIKE $1
+      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+       FROM explorer_markers m
+       JOIN creators c ON m.creator_id = c.id
+       WHERE m.video_url ILIKE $1
        LIMIT 1`,
       [`%${videoId}%`]
     )
@@ -43,14 +44,14 @@ export async function generateMetadata({
     const canonicalVideoUrl = marker.videoUrl || videoUrl
     const description = marker.summary
       ? marker.summary.replace(/<[^>]*>/g, "").slice(0, 160)
-      : `Explore ${marker.title} filming locations by ${marker.creator}`
+      : `Explore ${marker.title} filming locations by ${marker.creatorName}`
 
     return {
-      title: `${marker.title} - ${marker.creator} | VlogMap`,
+      title: `${marker.title} - ${marker.creatorName} | VlogMap`,
       description,
       openGraph: {
         title: marker.title,
-        description: `by ${marker.creator}`,
+        description: `by ${marker.creatorName}`,
         images: [
           marker.screenshotUrl || getYouTubeThumbnailUrl(canonicalVideoUrl) || "",
         ].filter(Boolean),
@@ -78,13 +79,14 @@ export default async function VideoDetailPage({
 
   const { rows } = await query<MarkerWithLocation>(
     `SELECT
-       m.id, m.title, m.creator, m.channel_url, m.video_url, m.description,
+       m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description,
        m.latitude, m.longitude, m.city, m.district, m.country,
        m.video_published_at, m.screenshot_url, m.summary, m.location_id,
        m.type, m.parent_city_id, m.timestamp, m.created_at,
        l.name as location_name,
        p.title as parent_city_name
      FROM explorer_markers m
+     JOIN creators c ON m.creator_id = c.id
      LEFT JOIN locations l ON m.location_id = l.id
      LEFT JOIN explorer_markers p ON m.parent_city_id = p.id
      WHERE m.video_url ILIKE $1

@@ -18,13 +18,15 @@ export async function GET(request: NextRequest) {
     const { rows } = await query<MarkerWithLocation>(
       `
       SELECT 
-        m.id, m.title, m.creator, m.channel_url, m.video_url, m.description, 
+        m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, 
+        m.video_url, m.description, 
         m.latitude, m.longitude, m.city, m.district, m.country, 
         m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
         m.type, m.parent_city_id, m.timestamp, m.created_at,
         l.name as location_name,
         p.title as parent_city_name
       FROM explorer_markers m
+      JOIN creators c ON m.creator_id = c.id
       LEFT JOIN locations l ON m.location_id = l.id
       LEFT JOIN explorer_markers p ON m.parent_city_id = p.id
       ${videoUrl ? "WHERE m.video_url = $1" : ""}
@@ -77,17 +79,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { rows } = await query<MarkerRow>(
+    // Look up or create creator
+    let creatorId: number
+    const { rows: existingCreators } = await query<{ id: number }>(
+      `SELECT id FROM creators WHERE name = $1`,
+      [payload.creatorName]
+    )
+    
+    if (existingCreators.length > 0) {
+      creatorId = existingCreators[0].id
+      // Update channel_url if provided and different
+      if (payload.channelUrl) {
+        await query(
+          `UPDATE creators SET channel_url = $1 WHERE id = $2`,
+          [payload.channelUrl, creatorId]
+        )
+      }
+    } else {
+      // Create new creator
+      const { rows: newCreators } = await query<{ id: number }>(
+        `INSERT INTO creators (name, channel_url) VALUES ($1, $2) RETURNING id`,
+        [payload.creatorName, payload.channelUrl ?? null]
+      )
+      creatorId = newCreators[0].id
+    }
+
+    const { rows: insertRows } = await query<{ id: number }>(
       `
         INSERT INTO explorer_markers
-          (title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, type, parent_city_id, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
+          (title, creator_id, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, type, parent_city_id, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        RETURNING id
       `,
       [
         payload.title,
-        payload.creator,
-        payload.channelUrl ?? null,
+        creatorId,
         payload.videoUrl ?? null,
         payload.description ?? null,
         payload.latitude,
@@ -106,6 +132,15 @@ export async function POST(request: NextRequest) {
       ],
     )
 
+    // Fetch the inserted marker with creator info
+    const { rows } = await query<MarkerRow>(
+      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+       FROM explorer_markers m
+       JOIN creators c ON m.creator_id = c.id
+       WHERE m.id = $1`,
+      [insertRows[0].id],
+    )
+
     const marker = rows[0]
 
     // Auto-assign location ID
@@ -121,8 +156,10 @@ export async function POST(request: NextRequest) {
 
       // Fetch updated marker with location_id
       const { rows: updatedRows } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-         FROM explorer_markers WHERE id = $1`,
+        `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+         FROM explorer_markers m
+         JOIN creators c ON m.creator_id = c.id
+         WHERE m.id = $1`,
         [marker.id],
       )
 

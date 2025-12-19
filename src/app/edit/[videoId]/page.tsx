@@ -126,7 +126,7 @@ export default function EditVideoPage({
     const first = matchingMarkers[0]
     setVideoInfo({
       title: first.title,
-      creator: first.creator,
+      creatorName: first.creatorName,
       channelUrl: first.channelUrl ?? "",
       videoPublishedAt: first.videoPublishedAt ?? "",
       summary: first.summary ?? "",
@@ -357,7 +357,7 @@ export default function EditVideoPage({
           credentials: "include",
           body: JSON.stringify({
             title: videoInfo.title,
-            creator: videoInfo.creator,
+            creatorName: videoInfo.creatorName,
             channelUrl: videoInfo.channelUrl || undefined,
             videoUrl,
             videoPublishedAt: videoInfo.videoPublishedAt || undefined,
@@ -399,7 +399,7 @@ export default function EditVideoPage({
             updates: sortedLocations,
             videoMetadata: {
               title: videoInfo.title,
-              creator: videoInfo.creator,
+              creatorName: videoInfo.creatorName,
               channelUrl: videoInfo.channelUrl || undefined,
               videoPublishedAt: videoInfo.videoPublishedAt || undefined,
               summary: videoInfo.summary || undefined,
@@ -465,7 +465,7 @@ export default function EditVideoPage({
               <Label htmlFor="video-creator">Creator</Label>
               <Input
                 id="video-creator"
-                value={videoInfo.creator}
+                value={videoInfo.creatorName}
                 onChange={(e) =>
                   setVideoInfo({ ...videoInfo, creator: e.target.value })
                 }
@@ -643,7 +643,7 @@ export default function EditVideoPage({
                           <SelectItem value="none">No parent city</SelectItem>
                           {cityMarkers.map((cm) => (
                             <SelectItem key={cm.id} value={cm.id.toString()}>
-                              {cm.city || cm.locationName || "Unknown"} ({cm.creator})
+                              {cm.city || cm.locationName || "Unknown"} ({cm.creatorName})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -918,7 +918,7 @@ export default function EditVideoPage({
                           <SelectItem value="none">No parent city</SelectItem>
                           {cityMarkers.map((cm) => (
                             <SelectItem key={cm.id} value={cm.id.toString()}>
-                              {cm.city || cm.locationName || "Unknown"} ({cm.creator})
+                              {cm.city || cm.locationName || "Unknown"} ({cm.creatorName})
                             </SelectItem>
                           ))}
                         </SelectContent>

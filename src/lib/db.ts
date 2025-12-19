@@ -4,7 +4,8 @@ import type { QueryResultRow } from "pg"
 export type MarkerRow = {
   id: number
   title: string
-  creator: string
+  creator_id: number
+  creator_name: string
   channel_url: string | null
   video_url: string | null
   description: string | null
@@ -217,7 +218,8 @@ export function mapMarkerRow(row: MarkerRow) {
   return {
     id: row.id,
     title: row.title,
-    creator: row.creator,
+    creatorId: row.creator_id,
+    creatorName: row.creator_name,
     channelUrl: row.channel_url,
     videoUrl: row.video_url,
     description: row.description,

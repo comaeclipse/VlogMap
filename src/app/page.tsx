@@ -46,14 +46,14 @@ export default function Home() {
 
   const creators = useMemo(() => {
     if (!data) return []
-    const uniqueCreators = Array.from(new Set(data.map((m) => m.creator).filter(Boolean)))
+    const uniqueCreators = Array.from(new Set(data.map((m) => m.creatorName).filter(Boolean)))
     return uniqueCreators.sort((a, b) => a.localeCompare(b))
   }, [data])
 
   const filteredMarkers = useMemo(() => {
     if (!data) return []
     if (selectedCreator === "all") return data
-    return data.filter((marker) => marker.creator === selectedCreator)
+    return data.filter((marker) => marker.creatorName === selectedCreator)
   }, [data, selectedCreator])
 
   return (

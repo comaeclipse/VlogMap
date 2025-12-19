@@ -114,8 +114,8 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
   const markerIcons = useMemo(() => {
     const icons = new Map<string, L.DivIcon>()
     markers.forEach((marker) => {
-      if (!icons.has(marker.creator)) {
-        icons.set(marker.creator, createPinIcon(marker.creator))
+      if (!icons.has(marker.creatorName)) {
+        icons.set(marker.creatorName, createPinIcon(marker.creatorName))
       }
     })
     return icons
@@ -150,7 +150,7 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
         <Marker
           key={marker.id}
           position={[marker.latitude, marker.longitude]}
-          icon={markerIcons.get(marker.creator) || createPinIcon(marker.creator)}
+          icon={markerIcons.get(marker.creatorName) || createPinIcon(marker.creatorName)}
           eventHandlers={{
             click: () => onSelect?.(marker),
           }}
@@ -158,7 +158,7 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
           <Popup className="rounded-lg">
             <div className="min-w-[280px] text-sm">
               <p className="text-xs uppercase tracking-[0.08em] text-slate-500 leading-tight">
-                {marker.creator}
+                {marker.creatorName}
               </p>
               <p className="mb-1 font-semibold text-slate-900 leading-snug">{marker.title}</p>
               {/* Location info: city, district/state, and location name */}

@@ -27,17 +27,38 @@ export async function POST(request: NextRequest) {
         const values: (string | null)[] = []
         let paramIndex = 1
 
+        // Handle creator update if provided
+        let creatorId: number | undefined
+        if (metadata.creatorName !== undefined) {
+          const { rows: existingCreators } = await query<{ id: number }>(
+            `SELECT id FROM creators WHERE name = $1`,
+            [metadata.creatorName]
+          )
+          
+          if (existingCreators.length > 0) {
+            creatorId = existingCreators[0].id
+            // Update channel_url if provided and different
+            if (metadata.channelUrl) {
+              await query(
+                `UPDATE creators SET channel_url = $1 WHERE id = $2`,
+                [metadata.channelUrl, creatorId]
+              )
+            }
+          } else {
+            // Create new creator
+            const { rows: newCreators } = await query<{ id: number }>(
+              `INSERT INTO creators (name, channel_url) VALUES ($1, $2) RETURNING id`,
+              [metadata.creatorName, metadata.channelUrl ?? null]
+            )
+            creatorId = newCreators[0].id
+          }
+          updates.push(`creator_id = $${paramIndex++}`)
+          values.push(creatorId)
+        }
+
         if (metadata.title !== undefined) {
           updates.push(`title = $${paramIndex++}`)
           values.push(metadata.title)
-        }
-        if (metadata.creator !== undefined) {
-          updates.push(`creator = $${paramIndex++}`)
-          values.push(metadata.creator)
-        }
-        if (metadata.channelUrl !== undefined) {
-          updates.push(`channel_url = $${paramIndex++}`)
-          values.push(metadata.channelUrl ?? null)
         }
         if (metadata.videoPublishedAt !== undefined) {
           updates.push(`video_published_at = $${paramIndex++}`)
@@ -73,11 +94,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Update the marker
-        const { rows } = await query<MarkerRow>(
+        await query(
           `UPDATE explorer_markers
            SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5, type = $6, parent_city_id = $7, timestamp = $8
-           WHERE id = $9
-           RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at`,
+           WHERE id = $9`,
           [
             update.latitude,
             update.longitude,
@@ -89,6 +109,15 @@ export async function POST(request: NextRequest) {
             update.timestamp ?? null,
             update.id,
           ],
+        )
+
+        // Fetch updated marker with creator info
+        const { rows } = await query<MarkerRow>(
+          `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+           FROM explorer_markers m
+           JOIN creators c ON m.creator_id = c.id
+           WHERE m.id = $1`,
+          [update.id],
         )
 
         updatedMarkers.push(rows[0])
@@ -124,9 +153,10 @@ export async function POST(request: NextRequest) {
       const markerIds = updatedMarkers.map((m) => m.id)
       const placeholders = markerIds.map((_, i) => `$${i + 1}`).join(", ")
       const { rows: finalMarkers } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-         FROM explorer_markers
-         WHERE id IN (${placeholders})`,
+        `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+         FROM explorer_markers m
+         JOIN creators c ON m.creator_id = c.id
+         WHERE m.id IN (${placeholders})`,
         markerIds,
       )
 

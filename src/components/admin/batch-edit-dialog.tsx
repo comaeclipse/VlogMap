@@ -154,7 +154,7 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave, cityMarkers
                         <SelectItem value="none">No parent</SelectItem>
                         {cityMarkers.map((city) => (
                           <SelectItem key={city.id} value={city.id.toString()}>
-                            {city.creator} - {city.title}
+                            {city.creatorName} - {city.title}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -109,7 +109,7 @@ export default function AdminPage() {
       .filter((m) => m.type === 'city')
       .sort((a, b) => {
         // Sort by creator, then title
-        const creatorCompare = a.creator.localeCompare(b.creator)
+        const creatorCompare = a.creatorName.localeCompare(b.creatorName)
         if (creatorCompare !== 0) return creatorCompare
         return a.title.localeCompare(b.title)
       })
@@ -241,7 +241,7 @@ export default function AdminPage() {
     setEditingId(null)
     setForm({
       title: video.title,
-      creator: video.creator,
+      creatorName: video.creatorName,
       channelUrl: video.channelUrl ?? "",
       videoUrl: video.videoUrl,
       videoPublishedAt: video.videoPublishedAt ?? "",
@@ -261,7 +261,7 @@ export default function AdminPage() {
     setEditingId(marker.id)
     setForm({
       title: marker.title,
-      creator: marker.creator,
+      creatorName: marker.creatorName,
       channelUrl: marker.channelUrl ?? "",
       videoUrl: marker.videoUrl ?? "",
       description: marker.description ?? "",
@@ -286,7 +286,7 @@ export default function AdminPage() {
     setEditingId(null)
     setForm({
       title: marker.title,
-      creator: marker.creator,
+      creatorName: marker.creatorName,
       channelUrl: marker.channelUrl ?? "",
       videoUrl: marker.videoUrl ?? "",
       description: marker.description ?? "",
@@ -344,7 +344,7 @@ export default function AdminPage() {
       setForm((prev) => ({
         ...prev,
         title: prev.title || payload.title || prev.title,
-        creator: prev.creator || payload.creator || prev.creator,
+        creatorName: prev.creatorName || payload.creatorName || prev.creatorName,
         videoPublishedAt: payload.publishedAt || prev.videoPublishedAt,
       }))
       toast.success("Metadata applied")
@@ -472,7 +472,7 @@ export default function AdminPage() {
                 id="creator"
                 list="creator-options"
                 placeholder="Channel name"
-                value={form.creator}
+                value={form.creatorName}
                 onChange={(e) => setForm({ ...form, creator: e.target.value })}
               />
               <datalist id="creator-options">
@@ -727,7 +727,7 @@ export default function AdminPage() {
                     <SelectItem value="none">No parent city</SelectItem>
                     {cityMarkers.map((cm) => (
                       <SelectItem key={cm.id} value={cm.id.toString()}>
-                        {cm.city || cm.locationName || "Unknown"} ({cm.creator})
+                        {cm.city || cm.locationName || "Unknown"} ({cm.creatorName})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -846,7 +846,7 @@ export default function AdminPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-white">{marker.title}</p>
                       <p className="text-sm text-slate-400">
-                        {marker.creator} &middot; {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+                        {marker.creatorName} &middot; {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
                         {marker.city ? ` · ${marker.city}` : ""}
                       </p>
                       {marker.description && (

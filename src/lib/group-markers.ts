@@ -22,7 +22,7 @@ export function groupMarkersByVideo(markers: Marker[]): {
     return {
       videoUrl,
       title: first.title,
-      creator: first.creator,
+      creatorName: first.creatorName,
       channelUrl: first.channelUrl,
       videoPublishedAt: first.videoPublishedAt,
       locationCount: locations.length,

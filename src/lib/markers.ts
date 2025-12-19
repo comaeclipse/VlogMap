@@ -2,7 +2,7 @@ import { z } from "zod"
 
 export const markerSchema = z.object({
   title: z.string().min(2).max(120),
-  creator: z.string().min(2).max(120),
+  creatorName: z.string().min(2).max(120),
   channelUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   videoUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   description: z.string().max(500).optional().or(z.literal("").transform(() => undefined)),
@@ -41,7 +41,7 @@ export const locationUpdateSchema = z.object({
 
 export const videoMetadataSchema = z.object({
   title: z.string().min(2).max(120).optional(),
-  creator: z.string().min(2).max(120).optional(),
+  creatorName: z.string().min(2).max(120).optional(),
   channelUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   videoPublishedAt: z
     .string()

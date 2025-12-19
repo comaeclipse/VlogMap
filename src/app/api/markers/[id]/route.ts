@@ -92,38 +92,60 @@ export async function PUT(
       )
     }
 
+    // Look up or create creator
+    let creatorId: number
+    const { rows: existingCreators } = await query<{ id: number }>(
+      `SELECT id FROM creators WHERE name = $1`,
+      [payload.creatorName]
+    )
+    
+    if (existingCreators.length > 0) {
+      creatorId = existingCreators[0].id
+      // Update channel_url if provided and different
+      if (payload.channelUrl) {
+        await query(
+          `UPDATE creators SET channel_url = $1 WHERE id = $2`,
+          [payload.channelUrl, creatorId]
+        )
+      }
+    } else {
+      // Create new creator
+      const { rows: newCreators } = await query<{ id: number }>(
+        `INSERT INTO creators (name, channel_url) VALUES ($1, $2) RETURNING id`,
+        [payload.creatorName, payload.channelUrl ?? null]
+      )
+      creatorId = newCreators[0].id
+    }
+
     // Check if coordinates changed significantly (more than 200m ~ 0.002 degrees)
     const coordinatesChanged =
       Math.abs(oldLatitude - payload.latitude) > 0.002 ||
       Math.abs(oldLongitude - payload.longitude) > 0.002
 
     // Update marker
-    const { rows } = await query<MarkerRow>(
+    await query(
       `
         UPDATE explorer_markers
         SET title = $1,
-            creator = $2,
-            channel_url = $3,
-            video_url = $4,
-            description = $5,
-            latitude = $6,
-            longitude = $7,
-            city = $8,
-            district = $9,
-            country = $10,
-            video_published_at = $11,
-            screenshot_url = $12,
-            summary = $13,
-            type = $14,
-            parent_city_id = $15,
-            timestamp = $16
-        WHERE id = $17
-        RETURNING id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
+            creator_id = $2,
+            video_url = $3,
+            description = $4,
+            latitude = $5,
+            longitude = $6,
+            city = $7,
+            district = $8,
+            country = $9,
+            video_published_at = $10,
+            screenshot_url = $11,
+            summary = $12,
+            type = $13,
+            parent_city_id = $14,
+            timestamp = $15
+        WHERE id = $16
       `,
       [
         payload.title,
-        payload.creator,
-        payload.channelUrl ?? null,
+        creatorId,
         payload.videoUrl ?? null,
         payload.description ?? null,
         payload.latitude,
@@ -141,6 +163,15 @@ export async function PUT(
         payload.timestamp ?? null,
         id,
       ],
+    )
+
+    // Fetch updated marker with creator info
+    const { rows } = await query<MarkerRow>(
+      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+       FROM explorer_markers m
+       JOIN creators c ON m.creator_id = c.id
+       WHERE m.id = $1`,
+      [id],
     )
 
     // Handle location reassignment if coordinates changed
@@ -163,8 +194,10 @@ export async function PUT(
 
         // Fetch updated marker with new location_id
         const { rows: updatedRows } = await query<MarkerRow>(
-          `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-           FROM explorer_markers WHERE id = $1`,
+          `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+           FROM explorer_markers m
+           JOIN creators c ON m.creator_id = c.id
+           WHERE m.id = $1`,
           [id],
         )
 
