@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       if (payload.videoMetadata) {
         const metadata = payload.videoMetadata
         const updates: string[] = []
-        const values: (string | null)[] = []
+        const values: (string | number | null)[] = []
         let paramIndex = 1
 
         // Handle creator update if provided
