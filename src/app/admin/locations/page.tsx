@@ -201,7 +201,7 @@ export default function TaxonomyManagerPage() {
         m.city?.toLowerCase().includes(query) ||
         m.locationName?.toLowerCase().includes(query) ||
         m.title?.toLowerCase().includes(query) ||
-        m.creator?.toLowerCase().includes(query)
+        m.creatorName?.toLowerCase().includes(query)
     )
   }, [viewMode, selectedCityId, landmarkMarkers, orphanLandmarks, unassignedMarkers, landmarkSearch])
 
