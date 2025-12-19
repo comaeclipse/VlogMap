@@ -601,7 +601,9 @@ export default function TaxonomyManagerPage() {
                 <div ref={countriesScrollRef} className="flex-1 overflow-y-auto p-2">
                   <button
                     onClick={() => {
-                      countriesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                      if (countriesScrollRef.current) {
+                        countriesScrollRef.current.scrollTop = 0
+                      }
                       setSelectedCountry(null)
                       setSelectedCityId(null)
                     }}
@@ -614,7 +616,9 @@ export default function TaxonomyManagerPage() {
                   </button>
                   <button
                     onClick={() => {
-                      countriesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                      if (countriesScrollRef.current) {
+                        countriesScrollRef.current.scrollTop = 0
+                      }
                       setSelectedCountry("unassigned")
                       setSelectedCityId(null)
                     }}
@@ -630,7 +634,9 @@ export default function TaxonomyManagerPage() {
                     <button
                       key={country}
                       onClick={() => {
-                        countriesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                        if (countriesScrollRef.current) {
+                          countriesScrollRef.current.scrollTop = 0
+                        }
                         setSelectedCountry(country)
                         setSelectedCityId(null)
                       }}
@@ -761,7 +767,9 @@ export default function TaxonomyManagerPage() {
                         <button
                           key={city.id}
                           onClick={() => {
-                            citiesScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                            if (citiesScrollRef.current) {
+                              citiesScrollRef.current.scrollTop = 0
+                            }
                             selectCity(city.id)
                           }}
                           className={`w-full rounded-lg p-3 text-left transition-colors ${viewMode === "city" && selectedCityId === city.id
