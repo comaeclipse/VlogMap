@@ -23,7 +23,7 @@ export type Marker = {
   createdAt?: string
 }
 
-export type MarkerInput = Omit<Marker, "id" | "createdAt">
+export type MarkerInput = Omit<Marker, "id" | "createdAt" | "creatorId">
 
 export type VideoGroup = {
   videoUrl: string
