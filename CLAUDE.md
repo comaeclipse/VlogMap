@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Using Serena MCP
+
+**CRITICAL: Always use Serena MCP for code navigation and editing tasks.** Serena is configured and running in this project—use it extensively.
+
+### When to Use Serena
+
+- **Symbol-level operations**: Use `find_symbol` instead of grepping for code
+- **Finding references**: Use `find_referencing_symbols` to locate where symbols are used
+- **Code editing**: Use `insert_after_symbol`, `replace_symbol_body` instead of file-based edits when appropriate
+- **Project exploration**: Use `get_symbols_overview` to understand file structure
+
+### Planning Mode Workflow
+
+Before implementing complex changes:
+
+1. **Activate the project**: Ensure Serena has activated this project (should happen automatically)
+2. **Use symbol navigation**: Leverage `find_symbol` and `find_referencing_symbols` to understand the codebase structure
+3. **Create a plan**: Use Serena's semantic understanding to map out changes at the symbol level
+4. **Verify with memories**: Check `.serena/memories/` for project-specific context from onboarding
+
+### Best Practices with Serena
+
+- **Start from clean git state**: Makes it easier to review changes and use `git diff` for verification
+- **Prefer semantic tools over file tools**: Use Serena's symbol-based tools rather than reading entire files
+- **Trust the index**: Serena automatically updates its index when files change
+- **Use project memories**: Serena's onboarding process creates memories that improve navigation
+
+For more details, see [Serena documentation](https://oraios.github.io/serena/).
+
 ## Project Overview
 
 VlogMap is a Next.js application that displays an interactive map of locations where YouTubers have filmed their videos. The frontend uses Leaflet for map rendering, and the backend uses PostgreSQL for data persistence with a password-protected admin interface.
