@@ -1109,7 +1109,7 @@ export default function TaxonomyManagerPage() {
                         <SelectContent>
                           {cityMarkers.map((city) => (
                             <SelectItem key={city.id} value={city.id.toString()}>
-                              {city.city || city.locationName || "Unknown"} ({city.creator})
+                              {city.city || city.locationName || "Unknown"} ({city.creatorName})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1384,7 +1384,7 @@ export default function TaxonomyManagerPage() {
                   <SelectItem value="none">No parent city</SelectItem>
                   {cityMarkers.map((city) => (
                     <SelectItem key={city.id} value={city.id.toString()}>
-                      {city.city || city.locationName || "Unknown"} ({city.creator})
+                      {city.city || city.locationName || "Unknown"} ({city.creatorName})
                     </SelectItem>
                   ))}
                 </SelectContent>

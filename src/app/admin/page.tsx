@@ -81,7 +81,7 @@ export default function AdminPage() {
   )
   const creatorOptions = useMemo(
     () =>
-      Array.from(new Set((data ?? []).map((m) => m.creator).filter(Boolean))).sort((a, b) =>
+      Array.from(new Set((data ?? []).map((m) => m.creatorName).filter(Boolean))).sort((a, b) =>
         a.localeCompare(b),
       ),
     [data],
@@ -94,13 +94,13 @@ export default function AdminPage() {
   const filteredVideoGroups = useMemo(() => {
     if (selectedCreator === "") return []
     if (selectedCreator === "all") return videoGroups
-    return videoGroups.filter(video => video.creator === selectedCreator)
+    return videoGroups.filter(video => video.creatorName === selectedCreator)
   }, [videoGroups, selectedCreator])
 
   const filteredUncategorized = useMemo(() => {
     if (selectedCreator === "") return []
     if (selectedCreator === "all") return uncategorized
-    return uncategorized.filter(marker => marker.creator === selectedCreator)
+    return uncategorized.filter(marker => marker.creatorName === selectedCreator)
   }, [uncategorized, selectedCreator])
 
   // Get all city markers for parent city dropdown
