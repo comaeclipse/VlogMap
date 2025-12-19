@@ -344,7 +344,7 @@ export default function AdminPage() {
       setForm((prev) => ({
         ...prev,
         title: prev.title || payload.title || prev.title,
-        creatorName: prev.creatorName || payload.creatorName || prev.creatorName,
+        creatorName: prev.creatorName || payload.creator || prev.creatorName,
         videoPublishedAt: payload.publishedAt || prev.videoPublishedAt,
       }))
       toast.success("Metadata applied")
