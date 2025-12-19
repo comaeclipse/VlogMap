@@ -1051,9 +1051,14 @@ export default function TaxonomyManagerPage() {
                               <p className="mt-1 text-sm text-slate-400">
                                 {loc.city}, {loc.country} &bull; {loc.markerCount} markers
                               </p>
-                              <p className="mt-0.5 font-mono text-xs text-slate-500">
+                              <a
+                                href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-0.5 font-mono text-xs text-slate-500 hover:text-blue-400 hover:underline"
+                              >
                                 {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)}
-                              </p>
+                              </a>
                             </div>
 
                             {/* Individual actions */}
