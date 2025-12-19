@@ -120,7 +120,15 @@ export default function EditVideoPage({
     })
 
     if (matchingMarkers.length === 0) {
-      toast.error("No locations found for this video")
+      // No locations yet - set default video info so user can add locations
+      setVideoInfo({
+        title: "",
+        creatorName: "",
+        channelUrl: "",
+        videoPublishedAt: "",
+        summary: "",
+      })
+      setLocations([])
       return
     }
 
@@ -330,18 +338,24 @@ export default function EditVideoPage({
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Find the video URL from original markers
+      // Find the video URL from original markers, or reconstruct from videoId
       const videoUrl = allMarkers?.find((m) => {
         const urlVideoId = extractYouTubeId(m.videoUrl ?? "")
         return urlVideoId === videoId
-      })?.videoUrl
-
-      if (!videoUrl) {
-        throw new Error("Could not find video URL")
-      }
+      })?.videoUrl ?? `https://www.youtube.com/watch?v=${videoId}`
 
       if (!videoInfo) {
         throw new Error("Video info not loaded")
+      }
+
+      // Validate required fields
+      if (!videoInfo.title || !videoInfo.creatorName) {
+        throw new Error("Please fill in video title and creator name")
+      }
+
+      // Check if there are any locations or new locations to save
+      if (locations.length === 0 && newLocations.length === 0) {
+        throw new Error("Please add at least one location before saving")
       }
 
       // Helper to convert timestamp to seconds

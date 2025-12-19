@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 export async function POST(request: NextRequest) {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY
   if (!apiKey) {
+    console.error("GOOGLE_MAPS_API_KEY environment variable is not set")
     return NextResponse.json(
       { error: "GOOGLE_MAPS_API_KEY is not configured" },
       { status: 500 },
@@ -17,7 +18,8 @@ export async function POST(request: NextRequest) {
     typeof longitude !== "number" ||
     Number.isNaN(longitude)
   ) {
-    return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 })
+    console.error("Invalid coordinates received:", { latitude, longitude })
+    return NextResponse.json({ error: `Invalid coordinates: lat=${latitude}, lng=${longitude}` }, { status: 400 })
   }
 
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json")
@@ -27,7 +29,9 @@ export async function POST(request: NextRequest) {
   try {
     const res = await fetch(url.toString())
     if (!res.ok) {
-      return NextResponse.json({ error: "Geocode lookup failed" }, { status: 400 })
+      const errorText = await res.text()
+      console.error("Google Maps API error:", res.status, errorText)
+      return NextResponse.json({ error: `Geocode lookup failed: ${res.status}` }, { status: 400 })
     }
     const data = await res.json()
     const result = data?.results?.[0]
