@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Globe2, LogIn } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -10,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/sonner"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -37,8 +35,8 @@ export default function LoginPage() {
       }
 
       toast.success("Logged in")
-      router.refresh()
-      router.push("/admin")
+      // Use hard redirect to ensure cookie is properly loaded
+      window.location.href = "/admin"
     } finally {
       setLoading(false)
     }
