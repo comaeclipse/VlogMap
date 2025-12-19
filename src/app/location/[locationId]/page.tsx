@@ -1,7 +1,8 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Globe2, MapPin, Video, Users } from "lucide-react"
+import Image from "next/image"
+import { Globe2, MapPin, Video, Users, Camera, Navigation } from "lucide-react"
 import { query, mapMarkerRow } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { groupMarkersByVideo } from "@/lib/group-markers"
@@ -46,7 +47,7 @@ export default async function LocationDetailPage({
 }) {
   const { locationId } = await params
 
-  // Fetch location details
+  // Fetch location details with parent city info
   const { rows: locationRows } = await query<{
     id: string
     latitude: number
@@ -55,11 +56,16 @@ export default async function LocationDetailPage({
     district: string | null
     country: string | null
     name: string | null
+    type: string | null
+    parent_location_id: string | null
+    parent_city_name: string | null
     created_at: string
   }>(
-    `SELECT id, latitude, longitude, city, district, country, name, created_at
-     FROM locations
-     WHERE id = $1`,
+    `SELECT l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.type, 
+            l.parent_location_id, pc.name as parent_city_name, l.created_at
+     FROM locations l
+     LEFT JOIN locations pc ON l.parent_location_id = pc.id
+     WHERE l.id = $1`,
     [locationId],
   )
 
@@ -82,9 +88,25 @@ export default async function LocationDetailPage({
   const markers = markerRows.map(mapMarkerRow)
   const { grouped: videos } = groupMarkersByVideo(markers)
 
+  // Get unique screenshots for photo gallery
+  const screenshots = markers
+    .filter(m => m.screenshotUrl)
+    .map(m => ({
+      url: m.screenshotUrl!,
+      title: m.title,
+      creatorName: m.creatorName,
+      videoUrl: m.videoUrl,
+    }))
+
+  // Get unique creators who visited this location
+  const uniqueCreators = [...new Set(markers.map(m => m.creatorName))]
+
   const data = {
     ...location,
     markers,
+    parentLocationId: location.parent_location_id,
+    parentCityName: location.parent_city_name,
+    locationType: location.type,
   }
 
   return (
@@ -120,10 +142,26 @@ export default async function LocationDetailPage({
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-12">
+        {/* Breadcrumb for landmarks */}
+        {data.parentLocationId && data.parentCityName && (
+          <div className="mb-4">
+            <Link 
+              href={`/location/${data.parentLocationId}`}
+              className="inline-flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition-colors"
+            >
+              <Navigation className="h-4 w-4" />
+              <span>{data.parentCityName}</span>
+              <span className="text-slate-500">›</span>
+            </Link>
+          </div>
+        )}
+
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
             <MapPin className="h-4 w-4" />
-            <span className="font-mono">{locationId}</span>
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-xs">
+              {data.locationType === 'city' ? 'City' : 'Landmark'}
+            </span>
           </div>
           <h1 className="text-4xl font-bold">
             {data.name || data.city || "Unnamed Location"}
@@ -138,22 +176,75 @@ export default async function LocationDetailPage({
           </p>
         </div>
 
-        <div className="mb-6">
-          <div className="flex items-center gap-4 text-sm text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <Video className="h-4 w-4 text-blue-400" />
-              <span>
-                {videos.length} video{videos.length !== 1 ? "s" : ""}
-              </span>
+        {/* Stats row - Foursquare style */}
+        <div className="mb-8 p-4 rounded-lg bg-slate-900/60 border border-white/10">
+          <div className="flex flex-wrap items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-blue-500/20">
+                <Video className="h-4 w-4 text-blue-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">{videos.length}</p>
+                <p className="text-slate-400 text-xs">Video{videos.length !== 1 ? "s" : ""}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 text-pink-400" />
-              <span>
-                {data.markers.length} marker{data.markers.length !== 1 ? "s" : ""}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-pink-500/20">
+                <Users className="h-4 w-4 text-pink-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">{uniqueCreators.length}</p>
+                <p className="text-slate-400 text-xs">Creator{uniqueCreators.length !== 1 ? "s" : ""}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-emerald-500/20">
+                <Camera className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">{screenshots.length}</p>
+                <p className="text-slate-400 text-xs">Photo{screenshots.length !== 1 ? "s" : ""}</p>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Photo Gallery - Foursquare style */}
+        {screenshots.length > 0 && (
+          <div className="mb-10">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Camera className="h-5 w-5 text-emerald-400" />
+              Photos
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {screenshots.slice(0, 8).map((screenshot, idx) => {
+                const videoId = screenshot.videoUrl ? extractYouTubeId(screenshot.videoUrl) : null
+                return (
+                  <Link
+                    key={idx}
+                    href={videoId ? `/video/${videoId}` : '#'}
+                    className="group relative aspect-video overflow-hidden rounded-lg bg-slate-800"
+                  >
+                    <VideoThumbnail
+                      src={screenshot.url}
+                      alt={screenshot.title}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-xs text-white/90 truncate">{screenshot.creatorName}</p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+            {screenshots.length > 8 && (
+              <p className="mt-3 text-sm text-slate-400">
+                +{screenshots.length - 8} more photos
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mb-6">
           <h2 className="text-2xl font-semibold mb-4">Videos at This Location</h2>
