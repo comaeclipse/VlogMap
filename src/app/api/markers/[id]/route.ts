@@ -17,6 +17,23 @@ function parseId(id: string) {
   return numeric
 }
 
+const MARKER_SELECT = `
+  SELECT 
+    m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, 
+    m.video_url, m.description, 
+    m.latitude, m.longitude, m.city, m.district, m.country, 
+    m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
+    m.timestamp, m.created_at,
+    l.name as location_name,
+    l.type as location_type,
+    l.parent_location_id as parent_location_id,
+    pc.name as parent_location_name
+  FROM explorer_markers m
+  JOIN creators c ON m.creator_id = c.id
+  LEFT JOIN locations l ON m.location_id = l.id
+  LEFT JOIN locations pc ON l.parent_location_id = pc.id
+`
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -34,14 +51,13 @@ export async function PUT(
     const body = await request.json()
     const payload = markerSchema.parse(body)
 
-    // Get old location_id, coordinates, and type before update
+    // Get old location_id and coordinates before update
     const { rows: oldRows } = await query<{
       location_id: string | null
       latitude: number
       longitude: number
-      type: string | null
     }>(
-      "SELECT location_id, latitude, longitude, type FROM explorer_markers WHERE id = $1",
+      "SELECT location_id, latitude, longitude FROM explorer_markers WHERE id = $1",
       [id],
     )
 
@@ -52,45 +68,6 @@ export async function PUT(
     const oldLocationId = oldRows[0].location_id
     const oldLatitude = oldRows[0].latitude
     const oldLongitude = oldRows[0].longitude
-    const oldType = oldRows[0].type
-
-    // Validate parent_city_id if provided
-    if (payload.parentCityId) {
-      // Prevent self-reference
-      if (payload.parentCityId === id) {
-        return NextResponse.json(
-          { error: "A marker cannot be its own parent" },
-          { status: 400 }
-        )
-      }
-
-      const { rows: parentRows } = await query<{ type: string | null }>(
-        `SELECT type FROM explorer_markers WHERE id = $1`,
-        [payload.parentCityId]
-      )
-      
-      if (parentRows.length === 0) {
-        return NextResponse.json(
-          { error: "Parent city marker not found" },
-          { status: 400 }
-        )
-      }
-      
-      if (parentRows[0].type !== 'city') {
-        return NextResponse.json(
-          { error: "Parent marker must be of type 'city'" },
-          { status: 400 }
-        )
-      }
-    }
-
-    // If type is changing from 'city' to something else, orphan child landmarks
-    if (oldType === 'city' && payload.type !== 'city') {
-      await query(
-        `UPDATE explorer_markers SET parent_city_id = NULL WHERE parent_city_id = $1`,
-        [id]
-      )
-    }
 
     // Look up or create creator
     let creatorId: number
@@ -122,7 +99,7 @@ export async function PUT(
       Math.abs(oldLatitude - payload.latitude) > 0.002 ||
       Math.abs(oldLongitude - payload.longitude) > 0.002
 
-    // Update marker
+    // Update marker (no type or parent_city_id columns)
     await query(
       `
         UPDATE explorer_markers
@@ -138,10 +115,8 @@ export async function PUT(
             video_published_at = $10,
             screenshot_url = $11,
             summary = $12,
-            type = $13,
-            parent_city_id = $14,
-            timestamp = $15
-        WHERE id = $16
+            timestamp = $13
+        WHERE id = $14
       `,
       [
         payload.title,
@@ -158,20 +133,9 @@ export async function PUT(
           : null,
         payload.screenshotUrl ?? null,
         payload.summary ?? null,
-        payload.type ?? null,
-        payload.parentCityId ?? null,
         payload.timestamp ?? null,
         id,
       ],
-    )
-
-    // Fetch updated marker with creator info
-    const { rows } = await query<MarkerRow>(
-      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-       FROM explorer_markers m
-       JOIN creators c ON m.creator_id = c.id
-       WHERE m.id = $1`,
-      [id],
     )
 
     // Handle location reassignment if coordinates changed
@@ -191,20 +155,8 @@ export async function PUT(
         if (oldLocationId) {
           await updateLocationCentroid(oldLocationId)
         }
-
-        // Fetch updated marker with new location_id
-        const { rows: updatedRows } = await query<MarkerRow>(
-          `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-           FROM explorer_markers m
-           JOIN creators c ON m.creator_id = c.id
-           WHERE m.id = $1`,
-          [id],
-        )
-
-        return NextResponse.json(mapMarkerRow(updatedRows[0]))
       } catch (locationError) {
         console.error("Failed to reassign location ID:", locationError)
-        // Return marker with old location_id if reassignment fails
       }
     } else if (oldLocationId) {
       // Coordinates didn't change much, just update centroid of current location
@@ -214,6 +166,26 @@ export async function PUT(
         console.error("Failed to update centroid:", centroidError)
       }
     }
+
+    // Update location name if provided
+    if (payload.locationName) {
+      const { rows: markerRows } = await query<{ location_id: string | null }>(
+        `SELECT location_id FROM explorer_markers WHERE id = $1`,
+        [id]
+      )
+      if (markerRows[0]?.location_id) {
+        await query(
+          `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
+          [payload.locationName, markerRows[0].location_id]
+        )
+      }
+    }
+
+    // Fetch updated marker with all joined data
+    const { rows } = await query<MarkerRow>(
+      `${MARKER_SELECT} WHERE m.id = $1`,
+      [id],
+    )
 
     return NextResponse.json(mapMarkerRow(rows[0]))
   } catch (error) {

@@ -17,8 +17,6 @@ export const markerSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
   screenshotUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   summary: z.string().max(10000).optional().or(z.literal("").transform(() => undefined)),
-  type: z.enum(['city', 'landmark']).optional().or(z.literal("").transform(() => undefined)),
-  parentCityId: z.coerce.number().int().positive().optional().nullable().or(z.literal("").transform(() => undefined)),
   timestamp: z.string().regex(/^(\d{1,2}:)?\d{1,2}:\d{2}$/).optional().or(z.literal("").transform(() => undefined)),
   locationName: z.string().max(200).optional().or(z.literal("").transform(() => undefined)),
 })
@@ -32,10 +30,8 @@ export const locationUpdateSchema = z.object({
   description: z.string().max(500).optional().nullable().or(z.literal("").transform(() => undefined)),
   city: z.string().max(120).optional().nullable().or(z.literal("").transform(() => undefined)),
   screenshotUrl: z.string().url().optional().nullable().or(z.literal("").transform(() => undefined)),
-  locationId: z.string().max(8).optional().nullable(),
+  locationId: z.string().max(36).optional().nullable(),
   locationName: z.string().max(200).optional().nullable().or(z.literal("").transform(() => undefined)),
-  type: z.enum(['city', 'landmark']).optional().nullable().or(z.literal("").transform(() => undefined)),
-  parentCityId: z.coerce.number().int().positive().optional().nullable().or(z.literal("").transform(() => undefined)),
   timestamp: z.string().regex(/^(\d{1,2}:)?\d{1,2}:\d{2}$/).optional().nullable().or(z.literal("").transform(() => undefined)),
 })
 

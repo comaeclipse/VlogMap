@@ -16,9 +16,9 @@ export type Marker = {
   summary?: string | null
   locationId?: string | null
   locationName?: string | null
-  type?: 'city' | 'landmark' | null
-  parentCityId?: number | null
-  parentCityName?: string | null
+  locationType?: 'city' | 'landmark' | null  // From joined location
+  parentLocationId?: string | null            // From joined location
+  parentLocationName?: string | null          // From joined location
   timestamp?: string | null
   createdAt?: string
 }
@@ -42,8 +42,7 @@ export type LocationEdit = {
   description?: string
   city?: string
   screenshotUrl?: string
-  type?: 'city' | 'landmark' | null
-  parentCityId?: number | null
+  locationId?: string | null  // Reference to location
   timestamp?: string | null
 }
 
@@ -65,6 +64,8 @@ export type Location = {
   country?: string | null
   name?: string | null
   type?: 'city' | 'landmark' | null
+  parentLocationId?: string | null
+  parentLocationName?: string | null
   createdAt: string
   updatedAt: string
 }

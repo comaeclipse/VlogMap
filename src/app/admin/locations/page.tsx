@@ -407,37 +407,38 @@ export default function TaxonomyManagerPage() {
     }
   }
 
-  // Bulk update markers
+  // Bulk update locations
   const bulkUpdate = async (updates: {
     type?: string | null
-    parentCityId?: number | null
+    parentLocationId?: string | null
   }) => {
     if (selectedLocationIds.size === 0) return
 
     setBulkActionLoading(true)
+    let successCount = 0
     try {
-      const res = await fetch("/api/markers/bulk-update", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          markerIds: Array.from(selectedLocationIds),
-          updates,
-        }),
-      })
+      // Update each location individually using the PATCH endpoint
+      for (const locationId of Array.from(selectedLocationIds)) {
+        const res = await fetch(`/api/locations/${locationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            type: updates.type,
+            parentLocationId: updates.parentLocationId,
+          }),
+        })
 
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}))
-        toast.error(payload?.error || "Failed to update markers")
-        return
+        if (res.ok) {
+          successCount++
+        }
       }
 
-      const result = await res.json()
-      toast.success(`Updated ${result.updatedCount} marker(s)`)
+      toast.success(`Updated ${successCount} location(s)`)
       setSelectedLocationIds(new Set())
       await mutate()
     } catch (error) {
-      toast.error("Failed to update markers")
+      toast.error("Failed to update locations")
       console.error(error)
     } finally {
       setBulkActionLoading(false)
@@ -945,7 +946,7 @@ export default function TaxonomyManagerPage() {
 
                       {/* Assign to city */}
                       <Select
-                        onValueChange={(value) => bulkUpdate({ parentCityId: parseInt(value) })}
+                        onValueChange={(value) => bulkUpdate({ parentLocationId: value })}
                         disabled={bulkActionLoading}
                       >
                         <SelectTrigger className="h-8 w-48 text-xs">
@@ -953,7 +954,7 @@ export default function TaxonomyManagerPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {cityLocations.map((city) => (
-                            <SelectItem key={city.id} value={city.id.toString()}>
+                            <SelectItem key={city.id} value={city.id}>
                               {city.name || city.city || "Unknown"} ({city.country || ""})
                             </SelectItem>
                           ))}
@@ -980,7 +981,7 @@ export default function TaxonomyManagerPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => bulkUpdate({ parentCityId: null })}
+                          onClick={() => bulkUpdate({ parentLocationId: null })}
                           disabled={bulkActionLoading}
                           className="h-8 text-xs"
                         >

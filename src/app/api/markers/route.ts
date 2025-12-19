@@ -6,29 +6,22 @@ import type { MarkerRow } from "@/lib/db"
 import { markerSchema } from "@/lib/markers"
 import { assignLocationToMarker } from "@/lib/location-matching"
 
-type MarkerWithLocation = MarkerRow & { 
-  location_name: string | null
-  location_type: string | null
-  parent_city_id: string | null
-  parent_city_name: string | null
-}
-
 export async function GET(request: NextRequest) {
   const videoUrl = request.nextUrl.searchParams.get("videoUrl")
 
   try {
-    const { rows } = await query<MarkerWithLocation>(
+    const { rows } = await query<MarkerRow>(
       `
       SELECT 
         m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, 
         m.video_url, m.description, 
         m.latitude, m.longitude, m.city, m.district, m.country, 
         m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
-        m.type, m.parent_city_id, m.timestamp, m.created_at,
+        m.timestamp, m.created_at,
         l.name as location_name,
         l.type as location_type,
-        l.parent_location_id as parent_city_id,
-        pc.name as parent_city_name
+        l.parent_location_id as parent_location_id,
+        pc.name as parent_location_name
       FROM explorer_markers m
       JOIN creators c ON m.creator_id = c.id
       LEFT JOIN locations l ON m.location_id = l.id
@@ -38,13 +31,7 @@ export async function GET(request: NextRequest) {
     `,
       videoUrl ? [videoUrl] : undefined,
     )
-    const markers = rows.map((row) => ({
-      ...mapMarkerRow(row),
-      locationName: row.location_name,
-      locationType: row.location_type,
-      parentCityId: row.parent_city_id,
-      parentCityName: row.parent_city_name,
-    }))
+    const markers = rows.map(mapMarkerRow)
     return NextResponse.json(markers)
   } catch (error) {
     console.error("Failed to fetch markers", error)
@@ -62,28 +49,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const payload = markerSchema.parse(body)
-
-    // Validate parent_city_id if provided
-    if (payload.parentCityId) {
-      const { rows: parentRows } = await query<{ type: string | null }>(
-        `SELECT type FROM explorer_markers WHERE id = $1`,
-        [payload.parentCityId]
-      )
-      
-      if (parentRows.length === 0) {
-        return NextResponse.json(
-          { error: "Parent city marker not found" },
-          { status: 400 }
-        )
-      }
-      
-      if (parentRows[0].type !== 'city') {
-        return NextResponse.json(
-          { error: "Parent marker must be of type 'city'" },
-          { status: 400 }
-        )
-      }
-    }
 
     // Look up or create creator
     let creatorId: number
@@ -113,8 +78,8 @@ export async function POST(request: NextRequest) {
     const { rows: insertRows } = await query<{ id: number }>(
       `
         INSERT INTO explorer_markers
-          (title, creator_id, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, type, parent_city_id, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          (title, creator_id, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id
       `,
       [
@@ -132,59 +97,62 @@ export async function POST(request: NextRequest) {
           : null,
         payload.screenshotUrl ?? null,
         payload.summary ?? null,
-        payload.type ?? null,
-        payload.parentCityId ?? null,
         payload.timestamp ?? null,
       ],
     )
 
-    // Fetch the inserted marker with creator info
-    const { rows } = await query<MarkerRow>(
-      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-       FROM explorer_markers m
-       JOIN creators c ON m.creator_id = c.id
-       WHERE m.id = $1`,
-      [insertRows[0].id],
-    )
-
-    const marker = rows[0]
+    const markerId = insertRows[0].id
 
     // Auto-assign location ID
     try {
       await assignLocationToMarker(
-        marker.id,
-        marker.latitude,
-        marker.longitude,
-        marker.city,
-        marker.district,
-        marker.country,
+        markerId,
+        payload.latitude,
+        payload.longitude,
+        payload.city ?? null,
+        payload.district ?? null,
+        payload.country ?? null,
       )
 
-      // Fetch updated marker with location_id
-      const { rows: updatedRows } = await query<MarkerRow>(
-        `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-         FROM explorer_markers m
-         JOIN creators c ON m.creator_id = c.id
-         WHERE m.id = $1`,
-        [marker.id],
-      )
-
-      const updatedMarker = updatedRows[0]
-
-      // Update location name if provided and marker has a locationId
-      if (payload.locationName && updatedMarker.location_id) {
-        await query(
-          `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
-          [payload.locationName, updatedMarker.location_id]
+      // Update location name if provided
+      if (payload.locationName) {
+        // Get the marker's location_id
+        const { rows: markerRows } = await query<{ location_id: string | null }>(
+          `SELECT location_id FROM explorer_markers WHERE id = $1`,
+          [markerId]
         )
+        if (markerRows[0]?.location_id) {
+          await query(
+            `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
+            [payload.locationName, markerRows[0].location_id]
+          )
+        }
       }
-
-      return NextResponse.json(mapMarkerRow(updatedMarker), { status: 201 })
     } catch (locationError) {
       console.error("Failed to assign location ID:", locationError)
-      // Return marker without location_id if assignment fails
-      return NextResponse.json(mapMarkerRow(marker), { status: 201 })
     }
+
+    // Fetch the full marker with all joined data
+    const { rows } = await query<MarkerRow>(
+      `SELECT 
+        m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, 
+        m.video_url, m.description, 
+        m.latitude, m.longitude, m.city, m.district, m.country, 
+        m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
+        m.timestamp, m.created_at,
+        l.name as location_name,
+        l.type as location_type,
+        l.parent_location_id as parent_location_id,
+        pc.name as parent_location_name
+       FROM explorer_markers m
+       JOIN creators c ON m.creator_id = c.id
+       LEFT JOIN locations l ON m.location_id = l.id
+       LEFT JOIN locations pc ON l.parent_location_id = pc.id
+       WHERE m.id = $1`,
+      [markerId],
+    )
+
+    return NextResponse.json(mapMarkerRow(rows[0]), { status: 201 })
   } catch (error) {
     console.error("Failed to create marker", error)
     if (error instanceof Error && "issues" in error) {

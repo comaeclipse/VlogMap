@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { ArrowLeft, Upload, Trash2, Save, Loader2, Plus, X, RefreshCw } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,8 +49,9 @@ type LocationEdit = {
   screenshotUrl: string
   locationId?: string | null
   locationName?: string | null
-  type?: 'city' | 'landmark' | null
-  parentCityId?: number | null
+  locationType?: 'city' | 'landmark' | null
+  parentLocationId?: string | null
+  parentLocationName?: string | null
   timestamp?: string | null
 }
 
@@ -143,8 +145,9 @@ export default function EditVideoPage({
         screenshotUrl: m.screenshotUrl ?? "",
         locationId: m.locationId,
         locationName: m.locationName ?? null,
-        type: m.type,
-        parentCityId: m.parentCityId,
+        locationType: m.locationType,
+        parentLocationId: m.parentLocationId,
+        parentLocationName: m.parentLocationName,
         timestamp: m.timestamp ?? "",
       }))
     )
@@ -215,8 +218,9 @@ export default function EditVideoPage({
         screenshotUrl: "",
         locationId: null,
         locationName: null,
-        type: null,
-        parentCityId: null,
+        locationType: null,
+        parentLocationId: null,
+        parentLocationName: null,
         timestamp: "",
       },
     ])
@@ -321,7 +325,7 @@ export default function EditVideoPage({
   }
 
   // Get city markers for parent dropdown
-  const cityMarkers = allMarkers?.filter((m) => m.type === 'city') || []
+  // City locations can be retrieved from the locations API if needed in the future
 
   const handleSave = async () => {
     setSaving(true)
@@ -366,8 +370,6 @@ export default function EditVideoPage({
             longitude: newLoc.longitude,
             city: newLoc.city || undefined,
             description: newLoc.description || undefined,
-            type: newLoc.type || undefined,
-            parentCityId: newLoc.parentCityId || undefined,
             timestamp: newLoc.timestamp || undefined,
             screenshotUrl: newLoc.screenshotUrl || undefined,
             locationName: newLoc.locationName || undefined,
@@ -583,29 +585,21 @@ export default function EditVideoPage({
                       }
                     />
                   </div>
-                  <div>
-                    <Label htmlFor={`type-${location.id}`}>Location Type</Label>
-                    <Select
-                      value={location.type || "unspecified"}
-                      onValueChange={(value) => {
-                        const newType = value === "unspecified" ? null : (value as 'city' | 'landmark')
-                        updateLocation(location.id, "type", newType)
-                        // Clear parent if not landmark
-                        if (newType !== 'landmark') {
-                          updateLocation(location.id, "parentCityId", null)
-                        }
-                      }}
-                    >
-                      <SelectTrigger id={`type-${location.id}`}>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unspecified">Unspecified</SelectItem>
-                        <SelectItem value="city">City</SelectItem>
-                        <SelectItem value="landmark">Landmark</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {location.locationType && (
+                    <div>
+                      <Label>Location Type</Label>
+                      <div className="mt-1.5">
+                        <Badge variant={location.locationType === 'city' ? 'secondary' : 'default'}>
+                          {location.locationType === 'city' ? 'City' : 'Landmark'}
+                        </Badge>
+                        {location.parentLocationName && (
+                          <span className="ml-2 text-xs text-slate-400">
+                            in {location.parentLocationName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor={`timestamp-${location.id}`}>
                       Timestamp
@@ -623,33 +617,6 @@ export default function EditVideoPage({
                       pattern="^(\d{1,2}:)?\d{1,2}:\d{2}$"
                     />
                   </div>
-                  {location.type === 'landmark' && (
-                    <div className="sm:col-span-2">
-                      <Label htmlFor={`parent-${location.id}`}>Parent City (Optional)</Label>
-                      <Select
-                        value={location.parentCityId?.toString() || "none"}
-                        onValueChange={(value) => {
-                          updateLocation(
-                            location.id,
-                            "parentCityId",
-                            value === "none" ? null : Number(value)
-                          )
-                        }}
-                      >
-                        <SelectTrigger id={`parent-${location.id}`}>
-                          <SelectValue placeholder="Select parent city" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px]">
-                          <SelectItem value="none">No parent city</SelectItem>
-                          {cityMarkers.map((cm) => (
-                            <SelectItem key={cm.id} value={cm.id.toString()}>
-                              {cm.city || cm.locationName || "Unknown"} ({cm.creatorName})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   <div className="sm:col-span-2">
                     <Label htmlFor={`name-${location.id}`}>
                       Location Name
@@ -860,28 +827,6 @@ export default function EditVideoPage({
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor={`new-type-${location.id}`}>Location Type</Label>
-                    <Select
-                      value={location.type || "unspecified"}
-                      onValueChange={(value) => {
-                        const newType = value === "unspecified" ? null : (value as 'city' | 'landmark')
-                        updateNewLocation(location.id, "type", newType)
-                        if (newType !== 'landmark') {
-                          updateNewLocation(location.id, "parentCityId", null)
-                        }
-                      }}
-                    >
-                      <SelectTrigger id={`new-type-${location.id}`}>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unspecified">Unspecified</SelectItem>
-                        <SelectItem value="city">City</SelectItem>
-                        <SelectItem value="landmark">Landmark</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label htmlFor={`new-timestamp-${location.id}`}>
                       Timestamp
                       <span className="ml-1 text-xs font-normal text-slate-400">
@@ -898,33 +843,6 @@ export default function EditVideoPage({
                       pattern="^(\d{1,2}:)?\d{1,2}:\d{2}$"
                     />
                   </div>
-                  {location.type === 'landmark' && (
-                    <div className="sm:col-span-2">
-                      <Label htmlFor={`new-parent-${location.id}`}>Parent City (Optional)</Label>
-                      <Select
-                        value={location.parentCityId?.toString() || "none"}
-                        onValueChange={(value) => {
-                          updateNewLocation(
-                            location.id,
-                            "parentCityId",
-                            value === "none" ? null : Number(value)
-                          )
-                        }}
-                      >
-                        <SelectTrigger id={`new-parent-${location.id}`}>
-                          <SelectValue placeholder="Select parent city" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px]">
-                          <SelectItem value="none">No parent city</SelectItem>
-                          {cityMarkers.map((cm) => (
-                            <SelectItem key={cm.id} value={cm.id.toString()}>
-                              {cm.city || cm.locationName || "Unknown"} ({cm.creatorName})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   <div className="sm:col-span-2">
                     <Label htmlFor={`new-name-${location.id}`}>
                       Location Name

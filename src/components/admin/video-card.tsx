@@ -91,10 +91,10 @@ export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation 
                         </span>
                       )}
                     </p>
-                    {location.type === 'city' && (
+                    {location.locationType === 'city' && (
                       <Badge variant="secondary" className="text-xs">City</Badge>
                     )}
-                    {location.type === 'landmark' && (
+                    {location.locationType === 'landmark' && (
                       <Badge variant="default" className="text-xs">Landmark</Badge>
                     )}
                   </div>
@@ -102,9 +102,9 @@ export function VideoCard({ video, onEditVideo, onAddLocation, onDeleteLocation 
                     {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
                     {location.city && ` · ${location.city}`}
                   </p>
-                  {location.parentCityName && (
+                  {location.parentLocationName && (
                     <p className="text-xs text-slate-500 mt-1">
-                      Parent: {location.parentCityName}
+                      Parent: {location.parentLocationName}
                     </p>
                   )}
                   {location.description && (

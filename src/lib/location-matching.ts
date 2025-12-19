@@ -118,14 +118,18 @@ export async function createLocation(
   }
 
   // Count existing landmarks in this city for auto-naming
+  // Format: "Paris 1", "Paris 2", etc. - each city has its own numbering
   let locationName = 'Location 1'
-  if (parentLocationId) {
+  if (parentLocationId && city) {
     const { rows: countRows } = await query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM locations WHERE parent_location_id = $1`,
+      `SELECT COUNT(*) as count FROM locations WHERE parent_location_id = $1 AND type = 'landmark'`,
       [parentLocationId]
     )
     const count = parseInt(countRows[0].count, 10) + 1
-    locationName = `Location ${count}`
+    locationName = `${city} ${count}`
+  } else if (city) {
+    // No parent but city is known - start at 1
+    locationName = `${city} 1`
   }
 
   // Insert new location as landmark

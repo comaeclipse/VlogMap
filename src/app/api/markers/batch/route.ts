@@ -6,6 +6,23 @@ import type { MarkerRow } from "@/lib/db"
 import { batchUpdateSchema } from "@/lib/markers"
 import { assignLocationToMarker } from "@/lib/location-matching"
 
+const MARKER_SELECT = `
+  SELECT 
+    m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, 
+    m.video_url, m.description, 
+    m.latitude, m.longitude, m.city, m.district, m.country, 
+    m.video_published_at, m.screenshot_url, m.summary, m.location_id, 
+    m.timestamp, m.created_at,
+    l.name as location_name,
+    l.type as location_type,
+    l.parent_location_id as parent_location_id,
+    pc.name as parent_location_name
+  FROM explorer_markers m
+  JOIN creators c ON m.creator_id = c.id
+  LEFT JOIN locations l ON m.location_id = l.id
+  LEFT JOIN locations pc ON l.parent_location_id = pc.id
+`
+
 export async function POST(request: NextRequest) {
   const authResponse = requireAdmin(request)
   if (authResponse) return authResponse
@@ -18,7 +35,7 @@ export async function POST(request: NextRequest) {
     await query("BEGIN")
 
     try {
-      const updatedMarkers: MarkerRow[] = []
+      const updatedMarkerIds: number[] = []
 
       // Update video metadata if provided
       if (payload.videoMetadata) {
@@ -80,8 +97,8 @@ export async function POST(request: NextRequest) {
 
       for (const update of payload.updates) {
         // Verify marker belongs to this video
-        const { rows: checkRows } = await query<{ video_url: string }>(
-          "SELECT video_url FROM explorer_markers WHERE id = $1",
+        const { rows: checkRows } = await query<{ video_url: string; latitude: number; longitude: number }>(
+          "SELECT video_url, latitude, longitude FROM explorer_markers WHERE id = $1",
           [update.id]
         )
 
@@ -93,71 +110,66 @@ export async function POST(request: NextRequest) {
           throw new Error(`Marker ${update.id} does not belong to this video`)
         }
 
-        // Update the marker
+        // Update the marker (no type or parent_city_id)
         await query(
           `UPDATE explorer_markers
-           SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5, type = $6, parent_city_id = $7, timestamp = $8
-           WHERE id = $9`,
+           SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5, timestamp = $6
+           WHERE id = $7`,
           [
             update.latitude,
             update.longitude,
             update.description ?? null,
             update.city ?? null,
             update.screenshotUrl ?? null,
-            update.type ?? null,
-            update.parentCityId ?? null,
             update.timestamp ?? null,
             update.id,
           ],
         )
 
-        // Fetch updated marker with creator info
-        const { rows } = await query<MarkerRow>(
-          `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-           FROM explorer_markers m
-           JOIN creators c ON m.creator_id = c.id
-           WHERE m.id = $1`,
-          [update.id],
-        )
+        updatedMarkerIds.push(update.id)
 
-        updatedMarkers.push(rows[0])
+        // Check if coordinates changed significantly
+        const coordinatesChanged =
+          Math.abs(checkRows[0].latitude - update.latitude) > 0.002 ||
+          Math.abs(checkRows[0].longitude - update.longitude) > 0.002
 
-        // Update location name if provided and marker has a locationId
-        if (update.locationName !== undefined && update.locationId) {
-          await query(
-            `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
-            [update.locationName || null, update.locationId]
+        // Reassign location if coordinates changed
+        if (coordinatesChanged) {
+          try {
+            await assignLocationToMarker(
+              update.id,
+              update.latitude,
+              update.longitude,
+              update.city ?? null,
+            )
+          } catch (locationError) {
+            console.error(
+              `Failed to reassign location for marker ${update.id}:`,
+              locationError,
+            )
+          }
+        }
+
+        // Update location name if provided
+        if (update.locationName !== undefined) {
+          const { rows: markerRows } = await query<{ location_id: string | null }>(
+            `SELECT location_id FROM explorer_markers WHERE id = $1`,
+            [update.id]
           )
+          if (markerRows[0]?.location_id) {
+            await query(
+              `UPDATE locations SET name = $1, updated_at = NOW() WHERE id = $2`,
+              [update.locationName || null, markerRows[0].location_id]
+            )
+          }
         }
       }
 
-      // Reassign location IDs for all updated markers
-      for (const marker of updatedMarkers) {
-        try {
-          await assignLocationToMarker(
-            marker.id,
-            marker.latitude,
-            marker.longitude,
-            marker.city,
-          )
-        } catch (locationError) {
-          console.error(
-            `Failed to reassign location for marker ${marker.id}:`,
-            locationError,
-          )
-          // Continue with other markers even if one fails
-        }
-      }
-
-      // Fetch all updated markers with their new location_ids
-      const markerIds = updatedMarkers.map((m) => m.id)
-      const placeholders = markerIds.map((_, i) => `$${i + 1}`).join(", ")
+      // Fetch all updated markers with their location data
+      const placeholders = updatedMarkerIds.map((_, i) => `$${i + 1}`).join(", ")
       const { rows: finalMarkers } = await query<MarkerRow>(
-        `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-         FROM explorer_markers m
-         JOIN creators c ON m.creator_id = c.id
-         WHERE m.id IN (${placeholders})`,
-        markerIds,
+        `${MARKER_SELECT} WHERE m.id IN (${placeholders})`,
+        updatedMarkerIds,
       )
 
       await query("COMMIT")

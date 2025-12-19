@@ -1,18 +1,11 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -28,10 +21,10 @@ type BatchEditDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (updates: LocationEdit[]) => Promise<void>
-  cityMarkers?: Marker[]
+  cityLocations?: Marker[]  // Kept for future use if needed
 }
 
-export function BatchEditDialog({ video, open, onOpenChange, onSave, cityMarkers = [] }: BatchEditDialogProps) {
+export function BatchEditDialog({ video, open, onOpenChange, onSave }: BatchEditDialogProps) {
   const [edits, setEdits] = useState<LocationEdit[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
@@ -43,8 +36,7 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave, cityMarkers
         longitude: loc.longitude,
         description: loc.description || '',
         city: loc.city || '',
-        type: loc.type,
-        parentCityId: loc.parentCityId,
+        locationId: loc.locationId,
       })))
     }
   }, [video])
@@ -85,6 +77,11 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave, cityMarkers
                     #{video.locations[index].locationId}
                   </span>
                 )}
+                {video && video.locations[index]?.locationName && (
+                  <span className="text-xs text-blue-400">
+                    {video.locations[index].locationName}
+                  </span>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -115,52 +112,6 @@ export function BatchEditDialog({ video, open, onOpenChange, onSave, cityMarkers
                     onChange={(e) => updateEdit(index, 'city', e.target.value)}
                   />
                 </div>
-                <div>
-                  <Label htmlFor={`type-${edit.id}`} className="text-xs">Type</Label>
-                  <Select
-                    value={edit.type || "unspecified"}
-                    onValueChange={(value) => {
-                      const newType = value === "unspecified" ? undefined : (value as 'city' | 'landmark')
-                      updateEdit(index, 'type', newType)
-                      // Clear parent city if changing to city or unspecified
-                      if (newType !== 'landmark') {
-                        updateEdit(index, 'parentCityId', undefined)
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unspecified">Unspecified</SelectItem>
-                      <SelectItem value="city">City</SelectItem>
-                      <SelectItem value="landmark">Landmark</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {edit.type === 'landmark' && (
-                  <div>
-                    <Label htmlFor={`parent-${edit.id}`} className="text-xs">Parent City</Label>
-                    <Select
-                      value={edit.parentCityId?.toString() || "none"}
-                      onValueChange={(value) => {
-                        updateEdit(index, 'parentCityId', value === "none" ? undefined : Number(value))
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[200px]">
-                        <SelectItem value="none">No parent</SelectItem>
-                        {cityMarkers.map((city) => (
-                          <SelectItem key={city.id} value={city.id.toString()}>
-                            {city.creatorName} - {city.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
                 <div className="col-span-2">
                   <Label htmlFor={`desc-${edit.id}`} className="text-xs">Description</Label>
                   <Textarea

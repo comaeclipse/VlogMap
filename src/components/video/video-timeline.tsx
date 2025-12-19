@@ -67,12 +67,12 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       >
                         {marker.timestamp}
                       </a>
-                      {marker.type === 'city' && (
+                      {marker.locationType === 'city' && (
                         <Badge variant="secondary" className="text-xs">
                           City
                         </Badge>
                       )}
-                      {marker.type === 'landmark' && (
+                      {marker.locationType === 'landmark' && (
                         <Badge variant="default" className="text-xs">
                           Landmark
                         </Badge>
@@ -100,8 +100,8 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                     <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
                       <MapPin className="h-3 w-3" />
                       {(() => {
-                        const cityLinkId = marker.type === 'landmark' && marker.parentCityId
-                          ? marker.parentCityId
+                        const cityLinkId = marker.locationType === 'landmark' && marker.parentLocationId
+                          ? marker.parentLocationId
                           : marker.locationId
                         const cityText = [marker.city, marker.district, marker.country]
                           .filter(Boolean)
@@ -126,9 +126,9 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       </p>
                     )}
 
-                    {marker.parentCityName && (
+                    {marker.parentLocationName && (
                       <p className="mt-1 text-xs text-slate-500">
-                        In: {marker.parentCityName}
+                        In: {marker.parentLocationName}
                       </p>
                     )}
                   </div>

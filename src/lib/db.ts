@@ -18,8 +18,10 @@ export type MarkerRow = {
   screenshot_url: string | null
   summary: string | null
   location_id: string | null
-  type: string | null
-  parent_city_id: number | null
+  location_name: string | null
+  location_type: string | null
+  parent_location_id: string | null
+  parent_location_name: string | null
   timestamp: string | null
   created_at: string
 }
@@ -232,8 +234,10 @@ export function mapMarkerRow(row: MarkerRow) {
     screenshotUrl: row.screenshot_url,
     summary: row.summary,
     locationId: row.location_id,
-    type: row.type as 'city' | 'landmark' | null,
-    parentCityId: row.parent_city_id,
+    locationName: row.location_name,
+    locationType: row.location_type as 'city' | 'landmark' | null,
+    parentLocationId: row.parent_location_id,
+    parentLocationName: row.parent_location_name,
     timestamp: row.timestamp,
     createdAt: row.created_at,
   }
