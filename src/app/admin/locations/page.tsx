@@ -133,6 +133,7 @@ export default function TaxonomyManagerPage() {
   // Refs for scrollable containers
   const countriesScrollRef = useRef<HTMLDivElement>(null)
   const citiesScrollRef = useRef<HTMLDivElement>(null)
+  const detailsScrollRef = useRef<HTMLDivElement>(null)
 
   // Derived data - now using locations
   const cityLocations = useMemo(
@@ -601,8 +602,8 @@ export default function TaxonomyManagerPage() {
                 <div ref={countriesScrollRef} className="flex-1 overflow-y-auto p-2">
                   <button
                     onClick={() => {
-                      if (countriesScrollRef.current) {
-                        countriesScrollRef.current.scrollTop = 0
+                      if (citiesScrollRef.current) {
+                        citiesScrollRef.current.scrollTop = 0
                       }
                       setSelectedCountry(null)
                       setSelectedCityId(null)
@@ -616,8 +617,8 @@ export default function TaxonomyManagerPage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (countriesScrollRef.current) {
-                        countriesScrollRef.current.scrollTop = 0
+                      if (citiesScrollRef.current) {
+                        citiesScrollRef.current.scrollTop = 0
                       }
                       setSelectedCountry("unassigned")
                       setSelectedCityId(null)
@@ -634,8 +635,8 @@ export default function TaxonomyManagerPage() {
                     <button
                       key={country}
                       onClick={() => {
-                        if (countriesScrollRef.current) {
-                          countriesScrollRef.current.scrollTop = 0
+                        if (citiesScrollRef.current) {
+                          citiesScrollRef.current.scrollTop = 0
                         }
                         setSelectedCountry(country)
                         setSelectedCityId(null)
@@ -767,8 +768,8 @@ export default function TaxonomyManagerPage() {
                         <button
                           key={city.id}
                           onClick={() => {
-                            if (citiesScrollRef.current) {
-                              citiesScrollRef.current.scrollTop = 0
+                            if (detailsScrollRef.current) {
+                              detailsScrollRef.current.scrollTop = 0
                             }
                             selectCity(city.id)
                           }}
@@ -1020,7 +1021,7 @@ export default function TaxonomyManagerPage() {
                 </div>
 
                 {/* Markers list */}
-                <div className="flex-1 overflow-y-auto p-4">
+                <div ref={detailsScrollRef} className="flex-1 overflow-y-auto p-4">
                   {viewMode === "city" && !selectedCityId ? (
                     <div className="flex h-full items-center justify-center">
                       <div className="text-center">

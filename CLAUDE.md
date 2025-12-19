@@ -4,61 +4,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Using Serena MCP
 
-**CRITICAL: Always use Serena MCP for code navigation and editing tasks.** Serena is configured and running in this project—use it extensively.
+Serena is configured in **`claude-code` context**, which is optimized for Claude Code by disabling tools that duplicate Claude Code's built-in capabilities.
+
+### What Serena Provides in `claude-code` Context
+
+**Active Tools (Code Navigation & Exploration):**
+- `find_symbol` - Find symbols by name pattern across codebase
+- `find_referencing_symbols` - Find all usages of a symbol (critical for impact analysis)
+- `get_symbols_overview` - Understand file structure and exports
+- `search_for_pattern` - Search with regex and file glob patterns
+- `list_dir` - Navigate directory structure
+- `rename_symbol` - Refactor symbol names across entire codebase
+
+**Active Tools (Project Memory):**
+- `write_memory`, `read_memory`, `edit_memory` - Persist project context across sessions
+
+**Intentionally Disabled (handled by Claude Code):**
+- Line-based editing (`insert_at_line`, `replace_lines`, `delete_lines`)
+- Symbol-based editing (`insert_after_symbol`, `insert_before_symbol`, `replace_symbol_body`)
+- File creation/writing
+
+**Why?** Claude Code has built-in Read/Edit/Write tools that are more efficient for these tasks.
 
 ### When to Use Serena
 
-- **Symbol-level operations**: Use `find_symbol` instead of grepping for code
-- **Finding references**: Use `find_referencing_symbols` to locate where symbols are used
-- **Code editing**: Use `insert_after_symbol`, `replace_symbol_body` instead of file-based edits when appropriate
-- **Project exploration**: Use `get_symbols_overview` to understand file structure
+- **Finding code**: Use `find_symbol` instead of manual grep searches
+- **Understanding impact**: Use `find_referencing_symbols` before refactoring or breaking changes
+- **Exploring codebase**: Use `get_symbols_overview` to understand file structure
+- **Pattern searching**: Use `search_for_pattern` with regex and glob patterns
+- **Semantic refactoring**: Use `rename_symbol` to safely rename across entire codebase
+- **Project context**: Use memory system to document findings for future sessions
 
-### Planning Mode Workflow
+### When to Use Claude Code Tools
 
-Before implementing complex changes:
+- **Creating files**: Use Write tool
+- **Modifying files**: Use Edit tool
+- **Reading files**: Use Read tool (especially for non-code files)
+- **Running commands**: Use Bash
 
-1. **Activate the project**: Ensure Serena has activated this project (should happen automatically)
-2. **Use symbol navigation**: Leverage `find_symbol` and `find_referencing_symbols` to understand the codebase structure
-3. **Create a plan**: Use Serena's semantic understanding to map out changes at the symbol level
-4. **Verify with memories**: Check `.serena/memories/` for project-specific context from onboarding
+### Recommended Workflow
 
-### MANDATORY: Serena-First Editing Policy
+1. **Explore with Serena**: `find_symbol` → `find_referencing_symbols` → `get_symbols_overview`
+2. **Plan with Serena**: Use `search_for_pattern` to find all affected areas
+3. **Implement with Claude Code**: Use Edit/Write/Read tools
+4. **Verify with Serena**: Use `find_referencing_symbols` to confirm all usages updated
+5. **Document with Serena**: Use `write_memory` to save context for future sessions
 
-**NEVER fall back to standard editing tools (Read/Edit/Write) when Serena MCP is configured.** This is a strict requirement.
+### Best Practices
 
-When asked to use Serena for code changes:
-
-1. **Plan First, Implement Second**:
-   - Create a detailed implementation plan using Serena's symbol navigation tools
-   - Present the plan to the user for approval
-   - Only after approval, proceed with implementation
-
-2. **Use Semantic/Symbolic Tools Only**:
-   - For code editing, ONLY use Serena's symbolic tools: `find_symbol`, `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`
-   - Do NOT use line-based editing tools like standard `Edit` or `Write`
-   - If you encounter errors with Serena tools, investigate and resolve them - don't switch to alternatives
-
-3. **Be Persistent**:
-   - If a Serena tool isn't active or returns an error, investigate why
-   - Check available Serena tools and find the appropriate semantic approach
-   - Ask the user for clarification if needed
-   - Never silently fall back to non-Serena tools
-
-4. **Proper Planning Mode Usage**:
-   - When user requests "planning mode," create a comprehensive plan document
-   - Use `find_symbol`, `find_referencing_symbols`, `get_symbols_overview` to understand code structure
-   - Document all intended changes at the symbol level
-   - Get explicit approval before making any code modifications
-
-**Example Violation**: Using standard `Edit` tool after encountering an error with `insert_at_line`
-**Correct Approach**: Investigate available symbolic tools, use `find_symbol` to locate the function, then use appropriate Serena symbolic editing tools
-
-### Best Practices with Serena
-
-- **Start from clean git state**: Makes it easier to review changes and use `git diff` for verification
-- **Prefer semantic tools over file tools**: Use Serena's symbol-based tools rather than reading entire files
-- **Trust the index**: Serena automatically updates its index when files change
-- **Use project memories**: Serena's onboarding process creates memories that improve navigation
+- **Understand before editing**: Use `find_referencing_symbols` to see all impact before making changes
+- **Semantic queries**: Leverage Serena's type/kind filtering for precise results
+- **Trust the index**: Serena automatically updates when files change
+- **Persist context**: Use memories to document architectural decisions and patterns
 
 For more details, see [Serena documentation](https://oraios.github.io/serena/).
 
