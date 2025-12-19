@@ -126,6 +126,8 @@ export default function TaxonomyManagerPage() {
   const [editLocationData, setEditLocationData] = useState({
     name: "",
     parentCityId: "none",
+    country: "",
+    district: "",
   })
 
 
@@ -288,6 +290,8 @@ export default function TaxonomyManagerPage() {
     setEditLocationData({
       name: location.name ?? "",
       parentCityId: location.parentLocationId ?? "none",
+      country: location.country ?? "",
+      district: location.district ?? "",
     })
     setIsEditLocationOpen(true)
   }
@@ -306,6 +310,8 @@ export default function TaxonomyManagerPage() {
         editLocationData.parentCityId === "none"
           ? null
           : editLocationData.parentCityId,
+      country: editLocationData.country || null,
+      district: editLocationData.district || null,
     }
 
     setUpdatingLocationId(editingLocationId)
@@ -1136,6 +1142,24 @@ export default function TaxonomyManagerPage() {
                 id="edit-location-name"
                 value={editLocationData.name}
                 onChange={(e) => setEditLocationData(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-country">Country</Label>
+              <Input
+                id="edit-country"
+                placeholder="e.g. Belarus, France"
+                value={editLocationData.country}
+                onChange={(e) => setEditLocationData(prev => ({ ...prev, country: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-district">District / State (Optional)</Label>
+              <Input
+                id="edit-district"
+                placeholder="e.g. Île-de-France"
+                value={editLocationData.district}
+                onChange={(e) => setEditLocationData(prev => ({ ...prev, district: e.target.value }))}
               />
             </div>
             <div className="grid gap-2">
