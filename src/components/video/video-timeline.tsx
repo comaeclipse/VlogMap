@@ -103,7 +103,7 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                         const cityLinkId = marker.locationType === 'landmark' && marker.parentLocationId
                           ? marker.parentLocationId
                           : marker.locationId
-                        const cityText = [marker.city, marker.district, marker.country]
+                        const cityText = [marker.city, marker.country]
                           .filter(Boolean)
                           .join(", ") || "Location"
 

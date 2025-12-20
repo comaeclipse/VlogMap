@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Globe2, MapPin, Video, Users, Camera, Navigation } from "lucide-react"
+import { Globe2, MapPin, Video, Users, Camera, Navigation, ChevronRight } from "lucide-react"
 import { query, mapMarkerRow } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { groupMarkersByVideo } from "@/lib/group-markers"
@@ -76,14 +76,22 @@ export default async function LocationDetailPage({
   const location = locationRows[0]
 
   // Fetch all markers at this location
-  const { rows: markerRows } = await query<MarkerRow>(
-    `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
-     FROM explorer_markers m
-     JOIN creators c ON m.creator_id = c.id
-     WHERE m.location_id = $1
-     ORDER BY m.created_at DESC`,
-    [locationId],
-  )
+  // For cities, include both direct city markers AND markers from child landmarks
+  // For landmarks, only fetch markers directly at that landmark
+  const markerQuery = location.type === 'city'
+    ? `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+       FROM explorer_markers m
+       JOIN creators c ON m.creator_id = c.id
+       WHERE m.location_id = $1 
+          OR m.location_id IN (SELECT id FROM locations WHERE parent_location_id = $1)
+       ORDER BY m.created_at DESC`
+    : `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+       FROM explorer_markers m
+       JOIN creators c ON m.creator_id = c.id
+       WHERE m.location_id = $1
+       ORDER BY m.created_at DESC`
+
+  const { rows: markerRows } = await query<MarkerRow>(markerQuery, [locationId])
 
   const markers = markerRows.map(mapMarkerRow)
   const { grouped: videos } = groupMarkersByVideo(markers)
@@ -100,6 +108,30 @@ export default async function LocationDetailPage({
 
   // Get unique creators who visited this location
   const uniqueCreators = [...new Set(markers.map(m => m.creatorName))]
+
+  // For cities, fetch child landmarks
+  let childLandmarks: Array<{ id: string; name: string; markerCount: number }> = []
+  if (location.type === 'city') {
+    const { rows: landmarkRows } = await query<{ 
+      id: string
+      name: string
+      marker_count: string
+    }>(
+      `SELECT l.id, l.name, COUNT(m.id) as marker_count
+       FROM locations l
+       LEFT JOIN explorer_markers m ON l.id = m.location_id
+       WHERE l.parent_location_id = $1
+       GROUP BY l.id, l.name
+       HAVING COUNT(m.id) > 0
+       ORDER BY COUNT(m.id) DESC, l.name`,
+      [locationId]
+    )
+    childLandmarks = landmarkRows.map(row => ({
+      id: row.id,
+      name: row.name,
+      markerCount: parseInt(row.marker_count, 10)
+    }))
+  }
 
   const data = {
     ...location,
@@ -246,8 +278,44 @@ export default async function LocationDetailPage({
           </div>
         )}
 
+        {/* Landmarks in this city */}
+        {data.locationType === 'city' && childLandmarks.length > 0 && (
+          <div className="mb-10">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-pink-400" />
+              Places in {data.name || data.city}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {childLandmarks.map((landmark) => (
+                <Link
+                  key={landmark.id}
+                  href={`/location/${landmark.id}`}
+                  className="group flex items-center justify-between p-4 rounded-lg bg-slate-900/60 border border-white/10 hover:border-white/20 hover:bg-slate-900 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-pink-500/20">
+                      <MapPin className="h-4 w-4 text-pink-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-50 group-hover:text-white">
+                        {landmark.name}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {landmark.markerCount} visit{landmark.markerCount !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-300" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold mb-4">Videos at This Location</h2>
+          <h2 className="text-2xl font-semibold mb-4">
+            {data.locationType === 'city' ? 'Videos in This City' : 'Videos at This Location'}
+          </h2>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
