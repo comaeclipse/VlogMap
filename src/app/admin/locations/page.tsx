@@ -557,19 +557,54 @@ export default function TaxonomyManagerPage() {
             </Link>
             <h1 className="text-lg font-semibold">Taxonomy Manager</h1>
           </div>
-          <div className="flex items-center gap-4 text-sm text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <Building2 className="h-4 w-4 text-blue-400" />
-              {cityLocations.length} cities
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Landmark className="h-4 w-4 text-amber-400" />
-              {landmarkLocations.length} landmarks
-            </span>
-            <span className="flex items-center gap-1.5">
-              <AlertCircle className="h-4 w-4 text-slate-500" />
-              {unassignedMarkers.length} unassigned
-            </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-sm text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <Building2 className="h-4 w-4 text-blue-400" />
+                {cityLocations.length} cities
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Landmark className="h-4 w-4 text-amber-400" />
+                {landmarkLocations.length} landmarks
+              </span>
+              <span className="flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4 text-slate-500" />
+                {unassignedMarkers.length} unassigned
+              </span>
+            </div>
+            {orphanLandmarks.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  if (!confirm(`Fix ${orphanLandmarks.length} orphan landmarks by creating/linking parent cities?`)) return
+                  
+                  try {
+                    const res = await fetch("/api/locations/fix-orphans", {
+                      method: "POST",
+                      credentials: "include",
+                    })
+                    
+                    if (!res.ok) {
+                      const payload = await res.json().catch(() => ({}))
+                      toast.error(payload?.error || "Failed to fix orphans")
+                      return
+                    }
+                    
+                    const result = await res.json()
+                    toast.success(`Fixed ${result.stats.fixed} orphans, created ${result.stats.citiesCreated} cities`)
+                    await mutate()
+                  } catch (error) {
+                    toast.error("Failed to fix orphans")
+                    console.error(error)
+                  }
+                }}
+                className="gap-2 text-orange-400 hover:text-orange-300"
+              >
+                <AlertCircle className="h-4 w-4" />
+                Fix {orphanLandmarks.length} Orphans
+              </Button>
+            )}
           </div>
         </div>
       </header>
