@@ -161,12 +161,12 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
                 {marker.creatorName}
               </p>
               <p className="mb-1 font-semibold text-slate-900 leading-snug">{marker.title}</p>
-              {/* Location info: city, district/state, and location name */}
-              {(marker.city || marker.district || marker.locationName) && (
+              {/* Location info: city, country, and location name */}
+              {(marker.city || marker.country || marker.locationName) && (
                 <div className="mb-2 flex flex-wrap items-center gap-1 text-xs text-slate-600">
                   {marker.city && <span>{marker.city}</span>}
-                  {marker.city && marker.district && <span>·</span>}
-                  {marker.district && <span>{marker.district}</span>}
+                  {marker.city && marker.country && <span>·</span>}
+                  {marker.country && <span>{marker.country}</span>}
                   {marker.locationName && (
                     <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-700 font-medium">
                       {marker.locationName}

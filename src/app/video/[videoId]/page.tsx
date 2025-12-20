@@ -28,9 +28,10 @@ export async function generateMetadata({
 
   try {
     const { rows } = await query<MarkerRow>(
-      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+      `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, COALESCE(m.district, l.district) as district, COALESCE(m.country, l.country) as country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
        FROM explorer_markers m
        JOIN creators c ON m.creator_id = c.id
+       LEFT JOIN locations l ON m.location_id = l.id
        WHERE m.video_url ILIKE $1
        LIMIT 1`,
       [`%${videoId}%`]
@@ -80,7 +81,9 @@ export default async function VideoDetailPage({
   const { rows } = await query<MarkerWithLocation>(
     `SELECT
        m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description,
-       m.latitude, m.longitude, m.city, m.district, m.country,
+       m.latitude, m.longitude, m.city,
+       COALESCE(m.district, l.district) as district,
+       COALESCE(m.country, l.country) as country,
        m.video_published_at, m.screenshot_url, m.summary, m.location_id,
        m.type, m.parent_city_id, m.timestamp, m.created_at,
        l.name as location_name,
@@ -133,10 +136,14 @@ export default async function VideoDetailPage({
 
       // Fetch videos at location directly from DB
       const { rows: locationMarkerRows } = await query<MarkerRow>(
-        `SELECT id, title, creator, channel_url, video_url, description, latitude, longitude, city, district, country, video_published_at, screenshot_url, summary, location_id, type, parent_city_id, timestamp, created_at
-         FROM explorer_markers
-         WHERE location_id = $1 AND video_url IS NOT NULL
-         ORDER BY video_published_at DESC NULLS LAST, created_at DESC`,
+        `SELECT m.id, m.title, m.creator, m.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city,
+         COALESCE(m.district, l.district) as district,
+         COALESCE(m.country, l.country) as country,
+         m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+         FROM explorer_markers m
+         LEFT JOIN locations l ON m.location_id = l.id
+         WHERE m.location_id = $1 AND m.video_url IS NOT NULL
+         ORDER BY m.video_published_at DESC NULLS LAST, m.created_at DESC`,
         [locationId],
       )
       const locationMarkers = locationMarkerRows.map(mapMarkerRow)

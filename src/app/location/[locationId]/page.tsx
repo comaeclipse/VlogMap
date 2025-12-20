@@ -79,15 +79,23 @@ export default async function LocationDetailPage({
   // For cities, include both direct city markers AND markers from child landmarks
   // For landmarks, only fetch markers directly at that landmark
   const markerQuery = location.type === 'city'
-    ? `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+    ? `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city,
+       COALESCE(m.district, l.district) as district,
+       COALESCE(m.country, l.country) as country,
+       m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
        FROM explorer_markers m
        JOIN creators c ON m.creator_id = c.id
-       WHERE m.location_id = $1 
+       LEFT JOIN locations l ON m.location_id = l.id
+       WHERE m.location_id = $1
           OR m.location_id IN (SELECT id FROM locations WHERE parent_location_id = $1)
        ORDER BY m.created_at DESC`
-    : `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.district, m.country, m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
+    : `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city,
+       COALESCE(m.district, l.district) as district,
+       COALESCE(m.country, l.country) as country,
+       m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
        FROM explorer_markers m
        JOIN creators c ON m.creator_id = c.id
+       LEFT JOIN locations l ON m.location_id = l.id
        WHERE m.location_id = $1
        ORDER BY m.created_at DESC`
 
@@ -198,9 +206,9 @@ export default async function LocationDetailPage({
           <h1 className="text-4xl font-bold">
             {data.name || data.city || "Unnamed Location"}
           </h1>
-          {(data.city || data.district || data.country) && (
+          {(data.city || data.country) && (
             <p className="mt-2 text-lg text-slate-300">
-              {[data.city, data.district, data.country].filter(Boolean).join(", ")}
+              {[data.city, data.country].filter(Boolean).join(", ")}
             </p>
           )}
           <p className="mt-1 text-sm text-slate-500">
