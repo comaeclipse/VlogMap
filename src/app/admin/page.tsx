@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { groupMarkersByVideo } from "@/lib/group-markers"
+import { extractYouTubeId } from "@/lib/youtube"
 import { VideoCard } from "@/components/admin/video-card"
 import { BatchEditDialog } from "@/components/admin/batch-edit-dialog"
 import type { Marker, MarkerInput, VideoGroup, LocationEdit } from "@/types/markers"
@@ -72,6 +73,7 @@ export default function AdminPage() {
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
   const [selectedCreator, setSelectedCreator] = useState<string>("")
   const [backfillLoading, setBackfillLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState<string>("")
   const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
   const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
     form.videoUrl ? ["/api/markers", form.videoUrl] : null,
@@ -100,6 +102,24 @@ export default function AdminPage() {
     if (selectedCreator === "all") return uncategorized
     return uncategorized.filter(marker => marker.creatorName === selectedCreator)
   }, [uncategorized, selectedCreator])
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    
+    const query = searchQuery.toLowerCase()
+    const matchingMarkers = (data || []).filter(marker => {
+      return (
+        marker.city?.toLowerCase().includes(query) ||
+        marker.district?.toLowerCase().includes(query) ||
+        marker.country?.toLowerCase().includes(query) ||
+        marker.description?.toLowerCase().includes(query) ||
+        marker.title?.toLowerCase().includes(query)
+      )
+    })
+    
+    const { grouped } = groupMarkersByVideo(matchingMarkers)
+    return grouped.slice(0, 10)
+  }, [searchQuery, data])
 
   // City locations can be retrieved from the locations API if needed in the future
 
@@ -384,7 +404,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/90 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
             <Link href="/">
               <Button variant="ghost" size="sm" className="gap-2">
@@ -394,6 +414,54 @@ export default function AdminPage() {
             </Link>
             <h1 className="text-lg font-semibold">Admin Portal</h1>
           </div>
+          
+          {/* Search box */}
+          <div className="relative flex-1 max-w-md">
+            <Input
+              type="text"
+              placeholder="Search videos, locations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pr-8"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+              >
+                ×
+              </button>
+            )}
+            
+            {/* Dropdown results */}
+            {searchQuery && searchResults.length > 0 && (
+              <div className="absolute top-full mt-1 w-full rounded-lg border border-white/10 bg-slate-900 shadow-xl max-h-96 overflow-y-auto z-50">
+                {searchResults.map((video) => (
+                  <Link
+                    key={video.videoUrl}
+                    href={`/edit/${extractYouTubeId(video.videoUrl)}`}
+                    onClick={() => setSearchQuery("")}
+                    className="block px-4 py-3 hover:bg-slate-800 border-b border-white/5 last:border-0"
+                  >
+                    <p className="font-medium text-slate-50 line-clamp-1">
+                      {video.title}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {video.creatorName} · {video.locationCount} location{video.locationCount !== 1 ? 's' : ''}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+            
+            {/* No results message */}
+            {searchQuery && searchResults.length === 0 && (
+              <div className="absolute top-full mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-3 z-50">
+                <p className="text-sm text-slate-400">No videos found</p>
+              </div>
+            )}
+          </div>
+          
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-400">
               {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
