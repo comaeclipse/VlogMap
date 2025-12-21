@@ -33,6 +33,7 @@ export const locationUpdateSchema = z.object({
   locationId: z.string().max(36).optional().nullable(),
   locationName: z.string().max(200).optional().nullable().or(z.literal("").transform(() => undefined)),
   timestamp: z.string().regex(/^(\d{1,2}:)?\d{1,2}:\d{2}$/).optional().nullable().or(z.literal("").transform(() => undefined)),
+  requestedLocationType: z.enum(['city', 'landmark']).optional(),
 })
 
 export const videoMetadataSchema = z.object({

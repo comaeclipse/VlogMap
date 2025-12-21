@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth"
 import { mapMarkerRow, query } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
 import { batchUpdateSchema } from "@/lib/markers"
-import { assignLocationToMarker } from "@/lib/location-matching"
+import { assignLocationToMarker, switchMarkerLocationType } from "@/lib/location-matching"
 
 const MARKER_SELECT = `
   SELECT 
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
 
       for (const update of payload.updates) {
         // Verify marker belongs to this video
-        const { rows: checkRows } = await query<{ video_url: string; latitude: number; longitude: number }>(
-          "SELECT video_url, latitude, longitude FROM explorer_markers WHERE id = $1",
+        const { rows: checkRows } = await query<{ video_url: string; latitude: number; longitude: number; location_id: string | null; city: string | null; district: string | null; country: string | null }>(
+          "SELECT video_url, latitude, longitude, location_id, city, district, country FROM explorer_markers WHERE id = $1",
           [update.id]
         )
 
@@ -108,6 +108,36 @@ export async function POST(request: NextRequest) {
 
         if (checkRows[0].video_url !== payload.videoUrl) {
           throw new Error(`Marker ${update.id} does not belong to this video`)
+        }
+
+        // Handle location type change FIRST (before coordinate updates)
+        if (update.requestedLocationType && checkRows[0].location_id) {
+          try {
+            // Get current location type
+            const { rows: locationRows } = await query<{ type: string }>(
+              'SELECT type FROM locations WHERE id = $1',
+              [checkRows[0].location_id]
+            )
+
+            if (locationRows.length > 0 && locationRows[0].type !== update.requestedLocationType) {
+              await switchMarkerLocationType(
+                update.id,
+                checkRows[0].location_id,
+                update.requestedLocationType,
+                update.latitude,
+                update.longitude,
+                update.city ?? checkRows[0].city ?? '',
+                update.city ? null : checkRows[0].district,
+                update.city ? null : checkRows[0].country,
+              )
+            }
+          } catch (locationTypeError) {
+            console.error(
+              `Failed to switch location type for marker ${update.id}:`,
+              locationTypeError,
+            )
+            // Don't throw - continue with other updates
+          }
         }
 
         // Update the marker (no type or parent_city_id)
@@ -128,12 +158,14 @@ export async function POST(request: NextRequest) {
 
         updatedMarkerIds.push(update.id)
 
-        // Check if coordinates changed significantly
+        // Check if coordinates changed significantly (skip if location type was just changed)
         const coordinatesChanged =
-          Math.abs(checkRows[0].latitude - update.latitude) > 0.002 ||
-          Math.abs(checkRows[0].longitude - update.longitude) > 0.002
+          !update.requestedLocationType && (
+            Math.abs(checkRows[0].latitude - update.latitude) > 0.002 ||
+            Math.abs(checkRows[0].longitude - update.longitude) > 0.002
+          )
 
-        // Reassign location if coordinates changed
+        // Reassign location if coordinates changed (but not if type was changed)
         if (coordinatesChanged) {
           try {
             await assignLocationToMarker(

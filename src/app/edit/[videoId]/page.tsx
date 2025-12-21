@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Dialog,
   DialogContent,
@@ -108,6 +109,7 @@ export default function EditVideoPage({
   const [locationToDelete, setLocationToDelete] = useState<{ id: number; isNew: boolean } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [geoLoadingFor, setGeoLoadingFor] = useState<number | null>(null)
+  const [locationTypeChanges, setLocationTypeChanges] = useState<Record<number, 'city' | 'landmark'>>({})
 
   // Filter markers by videoId
   useEffect(() => {
@@ -412,7 +414,11 @@ export default function EditVideoPage({
           credentials: "include",
           body: JSON.stringify({
             videoUrl,
-            updates: sortedLocations,
+            updates: sortedLocations.map(loc => ({
+              ...loc,
+              // Include location type if user changed it
+              requestedLocationType: locationTypeChanges[loc.id] || undefined,
+            })),
             videoMetadata: {
               title: videoInfo.title,
               creatorName: videoInfo.creatorName,
@@ -600,18 +606,38 @@ export default function EditVideoPage({
                     />
                   </div>
                   {location.locationType && (
-                    <div>
-                      <Label>Location Type</Label>
-                      <div className="mt-1.5">
-                        <Badge variant={location.locationType === 'city' ? 'secondary' : 'default'}>
-                          {location.locationType === 'city' ? 'City' : 'Landmark'}
-                        </Badge>
-                        {location.parentLocationName && (
-                          <span className="ml-2 text-xs text-slate-400">
-                            in {location.parentLocationName}
-                          </span>
-                        )}
-                      </div>
+                    <div className="sm:col-span-2">
+                      <Label className="mb-2 block">Location Type</Label>
+                      <RadioGroup
+                        value={locationTypeChanges[location.id] || location.locationType}
+                        onValueChange={(value) => {
+                          setLocationTypeChanges(prev => ({
+                            ...prev,
+                            [location.id]: value as 'city' | 'landmark'
+                          }))
+                        }}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="city" id={`city-${location.id}`} />
+                          <Label htmlFor={`city-${location.id}`} className="font-normal cursor-pointer">
+                            City Stop
+                            <span className="ml-1 text-xs text-slate-400">(general wandering)</span>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="landmark" id={`landmark-${location.id}`} />
+                          <Label htmlFor={`landmark-${location.id}`} className="font-normal cursor-pointer">
+                            Landmark Stop
+                            <span className="ml-1 text-xs text-slate-400">(specific spot)</span>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                      {location.parentLocationName && (
+                        <p className="mt-1.5 text-xs text-slate-400">
+                          {location.locationType === 'landmark' ? 'In' : 'Parent city'}: {location.parentLocationName}
+                        </p>
+                      )}
                     </div>
                   )}
                   <div>
