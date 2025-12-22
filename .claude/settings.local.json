@@ -27,7 +27,9 @@
       "mcp__Neon__get_database_tables",
       "mcp__Neon__describe_table_schema",
       "mcp__Neon__run_sql",
-      "mcp__plugin_serena_serena__search_for_pattern"
+      "mcp__plugin_serena_serena__search_for_pattern",
+      "mcp__plugin_serena_serena__find_file",
+      "mcp__plugin_serena_serena__get_symbols_overview"
     ]
   }
 }

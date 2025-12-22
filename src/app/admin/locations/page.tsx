@@ -1103,9 +1103,12 @@ export default function TaxonomyManagerPage() {
                                 ) : (
                                   <MapPin className="h-4 w-4 text-slate-400" />
                                 )}
-                                <span className="font-medium">
+                                <Link
+                                  href={`/location/${loc.id}`}
+                                  className="font-medium hover:text-blue-400 hover:underline"
+                                >
                                   {loc.name || loc.city || "Unnamed"}
-                                </span>
+                                </Link>
                               </div>
                               <p className="mt-1 text-sm text-slate-400">
                                 {loc.city}, {loc.country} &bull; {loc.markerCount} markers
