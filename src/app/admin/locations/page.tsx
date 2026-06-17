@@ -18,7 +18,11 @@ import {
   Plus,
   Edit2,
   Trash2,
+  Merge,
+  PlayCircle,
 } from "lucide-react"
+
+import { getDistanceKm } from "@/lib/distance"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,6 +66,15 @@ type Location = {
 }
 
 type ViewMode = "city" | "orphans" | "unassigned"
+
+// Landmarks in the same city closer than this are flagged as possible duplicates
+// to review (purely a suggestion — nothing merges without confirmation).
+const DUP_THRESHOLD_KM = 0.06 // ~60 meters
+
+function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)}m`
+  return `${km.toFixed(1)}km`
+}
 
 const fetcher = (url: string) =>
   fetch(url, { credentials: "include" }).then(async (res) => {
@@ -129,6 +142,12 @@ export default function TaxonomyManagerPage() {
     country: "",
     district: "",
   })
+
+  // Merge flow: candidate location ids under review, and which one is kept (target)
+  const [isMergeOpen, setIsMergeOpen] = useState(false)
+  const [mergeCandidateIds, setMergeCandidateIds] = useState<string[]>([])
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null)
+  const [mergeLoading, setMergeLoading] = useState(false)
 
   // Refs for scrollable containers
   const countriesScrollRef = useRef<HTMLDivElement>(null)
@@ -208,6 +227,62 @@ export default function TaxonomyManagerPage() {
     () => cityLocations.find((c) => c.id === selectedCityId),
     [cityLocations, selectedCityId]
   )
+
+  // Check-ins (markers) attached to a given location id — the "actual context"
+  // shown in the merge review so duplicates can be judged by their real visits.
+  const markersForLocation = useMemo(() => {
+    const byLocation = new Map<string, Marker[]>()
+    for (const m of markers ?? []) {
+      if (!m.locationId) continue
+      const list = byLocation.get(m.locationId) ?? []
+      list.push(m)
+      byLocation.set(m.locationId, list)
+    }
+    return (locationId: string) => byLocation.get(locationId) ?? []
+  }, [markers])
+
+  // Proximity-based duplicate suggestions among the landmarks currently shown.
+  // Groups places within DUP_THRESHOLD_KM of one another so they can be reviewed
+  // by coordinates rather than by their (often meaningless) auto-generated names.
+  const duplicateClusters = useMemo(() => {
+    const items = displayedLocations
+    const clusters: Location[][] = []
+    const used = new Set<string>()
+    for (let i = 0; i < items.length; i++) {
+      if (used.has(items[i].id)) continue
+      const cluster = [items[i]]
+      used.add(items[i].id)
+      for (let j = i + 1; j < items.length; j++) {
+        if (used.has(items[j].id)) continue
+        const near = cluster.some(
+          (c) =>
+            getDistanceKm(
+              c.latitude,
+              c.longitude,
+              items[j].latitude,
+              items[j].longitude
+            ) <= DUP_THRESHOLD_KM
+        )
+        if (near) {
+          cluster.push(items[j])
+          used.add(items[j].id)
+        }
+      }
+      if (cluster.length >= 2) clusters.push(cluster)
+    }
+    return clusters
+  }, [displayedLocations])
+
+  // Merge is only allowed across like types (city↔city or landmark↔landmark).
+  const selectionMergeable = useMemo(() => {
+    if (selectedLocationIds.size < 2) return false
+    const types = new Set(
+      locations
+        .filter((l) => selectedLocationIds.has(l.id))
+        .map((l) => l.type)
+    )
+    return types.size === 1
+  }, [selectedLocationIds, locations])
 
   // Auth redirect
   useEffect(() => {
@@ -368,6 +443,62 @@ export default function TaxonomyManagerPage() {
       console.error(error)
     } finally {
       setUpdatingLocationId(null)
+    }
+  }
+
+  // Open the merge review for a set of candidate location ids. Default target =
+  // the place with the most check-ins (NOT a name heuristic); user can override.
+  const openMerge = (locationIds: string[]) => {
+    const candidates = locations.filter((l) => locationIds.includes(l.id))
+    if (candidates.length < 2) {
+      toast.error("Select at least two places to merge")
+      return
+    }
+    const defaultTarget = [...candidates].sort(
+      (a, b) => b.markerCount - a.markerCount
+    )[0]
+    setMergeCandidateIds(candidates.map((c) => c.id))
+    setMergeTargetId(defaultTarget.id)
+    setIsMergeOpen(true)
+  }
+
+  const performMerge = async () => {
+    if (!mergeTargetId) return
+    const sourceIds = mergeCandidateIds.filter((id) => id !== mergeTargetId)
+    if (sourceIds.length === 0) {
+      toast.error("Pick which place to keep — the rest are merged into it")
+      return
+    }
+
+    setMergeLoading(true)
+    try {
+      const res = await fetch("/api/locations/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ targetId: mergeTargetId, sourceIds }),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        toast.error(payload?.error || "Failed to merge places")
+        return
+      }
+
+      const data = await res.json()
+      toast.success(
+        `Merged: moved ${data.movedMarkers} check-in(s), deleted ${data.deleted} place(s)`
+      )
+      setIsMergeOpen(false)
+      setMergeCandidateIds([])
+      setMergeTargetId(null)
+      setSelectedLocationIds(new Set())
+      await mutate()
+    } catch (error) {
+      toast.error("Failed to merge places")
+      console.error(error)
+    } finally {
+      setMergeLoading(false)
     }
   }
 
@@ -1003,6 +1134,24 @@ export default function TaxonomyManagerPage() {
                       </span>
                       <div className="h-4 w-px bg-white/20" />
 
+                      {/* Merge selected places */}
+                      <Button
+                        size="sm"
+                        onClick={() => openMerge(Array.from(selectedLocationIds))}
+                        disabled={!selectionMergeable || bulkActionLoading}
+                        title={
+                          selectedLocationIds.size < 2
+                            ? "Select at least two places"
+                            : !selectionMergeable
+                              ? "Can't merge cities and landmarks together"
+                              : "Review and merge these places into one"
+                        }
+                        className="h-8 gap-1.5 text-xs"
+                      >
+                        <Merge className="h-3.5 w-3.5" />
+                        Merge…
+                      </Button>
+
                       {/* Assign to city */}
                       <Select
                         onValueChange={(value) => bulkUpdate({ parentLocationId: value })}
@@ -1057,6 +1206,44 @@ export default function TaxonomyManagerPage() {
 
                 {/* Markers list */}
                 <div ref={detailsScrollRef} className="flex-1 overflow-y-auto p-4">
+                  {/* Proximity duplicate suggestions */}
+                  {duplicateClusters.length > 0 && (
+                    <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-300">
+                        <AlertCircle className="h-4 w-4" />
+                        {duplicateClusters.length} possible duplicate group
+                        {duplicateClusters.length > 1 ? "s" : ""} by proximity
+                        (within {Math.round(DUP_THRESHOLD_KM * 1000)}m)
+                      </div>
+                      <div className="space-y-2">
+                        {duplicateClusters.map((cluster, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between gap-3 rounded-md bg-slate-900/60 px-3 py-2"
+                          >
+                            <div className="min-w-0 text-sm">
+                              <span className="text-slate-200">
+                                {cluster.map((c) => c.name || c.city || "Unnamed").join("  ·  ")}
+                              </span>
+                              <span className="ml-2 text-xs text-slate-500">
+                                {cluster.reduce((n, c) => n + c.markerCount, 0)} check-ins total
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openMerge(cluster.map((c) => c.id))}
+                              className="h-7 shrink-0 gap-1.5 text-xs"
+                            >
+                              <Merge className="h-3 w-3" />
+                              Review &amp; merge
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {viewMode === "city" && !selectedCityId ? (
                     <div className="flex h-full items-center justify-center">
                       <div className="text-center">
@@ -1242,6 +1429,158 @@ export default function TaxonomyManagerPage() {
             <Button variant="ghost" onClick={() => setIsEditLocationOpen(false)}>Cancel</Button>
             <Button onClick={saveLocation} disabled={updatingLocationId === editingLocationId}>
               {updatingLocationId === editingLocationId ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge review dialog */}
+      <Dialog open={isMergeOpen} onOpenChange={setIsMergeOpen}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto border-white/10 bg-slate-900 text-slate-50">
+          <DialogHeader>
+            <DialogTitle>Merge places</DialogTitle>
+            <DialogDescription>
+              Pick the place to keep. Every check-in from the others moves into
+              it, then the others are deleted. Compare coordinates and check-ins
+              before confirming.
+            </DialogDescription>
+          </DialogHeader>
+
+          {(() => {
+            const candidates = locations.filter((l) =>
+              mergeCandidateIds.includes(l.id)
+            )
+            const target = candidates.find((c) => c.id === mergeTargetId) ?? null
+            const sources = candidates.filter((c) => c.id !== mergeTargetId)
+            const movedCheckins = sources.reduce(
+              (n, s) => n + s.markerCount,
+              0
+            )
+            return (
+              <>
+                <div className="space-y-2 py-2">
+                  {candidates.map((c) => {
+                    const isTarget = c.id === mergeTargetId
+                    const checkins = markersForLocation(c.id)
+                    const dist =
+                      target && !isTarget
+                        ? getDistanceKm(
+                            target.latitude,
+                            target.longitude,
+                            c.latitude,
+                            c.longitude
+                          )
+                        : null
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setMergeTargetId(c.id)}
+                        className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                          isTarget
+                            ? "border-green-500/50 bg-green-600/10"
+                            : "border-white/10 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            {isTarget ? (
+                              <Check className="h-4 w-4 shrink-0 text-green-400" />
+                            ) : (
+                              <div className="h-4 w-4 shrink-0 rounded-full border border-slate-500" />
+                            )}
+                            <span className="truncate font-medium">
+                              {c.name || c.city || "Unnamed"}
+                            </span>
+                            {isTarget && (
+                              <span className="rounded bg-green-600/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-green-300">
+                                Keep
+                              </span>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-xs text-slate-400">
+                            {c.markerCount} check-ins
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-3 pl-6 text-xs text-slate-500">
+                          <span className="font-mono">
+                            {c.latitude.toFixed(5)}, {c.longitude.toFixed(5)}
+                          </span>
+                          {dist !== null && (
+                            <span className="text-amber-400">
+                              {formatDistance(dist)} from kept
+                            </span>
+                          )}
+                        </div>
+                        {checkins.length > 0 && (
+                          <div className="mt-2 space-y-1 pl-6">
+                            {checkins.map((m) => (
+                              <div
+                                key={m.id}
+                                className="flex items-center gap-2 text-xs text-slate-400"
+                              >
+                                {m.screenshotUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={m.screenshotUrl}
+                                    alt=""
+                                    className="h-7 w-12 shrink-0 rounded object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-7 w-12 shrink-0 items-center justify-center rounded bg-slate-800">
+                                    <PlayCircle className="h-3 w-3 text-slate-600" />
+                                  </div>
+                                )}
+                                <span className="truncate">
+                                  {m.creatorName} — {m.title}
+                                </span>
+                                {m.timestamp && (
+                                  <span className="shrink-0 font-mono text-slate-600">
+                                    {m.timestamp}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="rounded-md bg-slate-800/50 px-3 py-2 text-sm text-slate-300">
+                  {target ? (
+                    <>
+                      Move <strong>{movedCheckins}</strong> check-in(s) into{" "}
+                      <strong>
+                        {target.name || target.city || "the kept place"}
+                      </strong>{" "}
+                      and delete <strong>{sources.length}</strong> place(s).
+                    </>
+                  ) : (
+                    "Pick which place to keep."
+                  )}
+                </div>
+              </>
+            )
+          })()}
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setIsMergeOpen(false)}
+              disabled={mergeLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={performMerge}
+              disabled={
+                mergeLoading ||
+                !mergeTargetId ||
+                mergeCandidateIds.length < 2
+              }
+            >
+              {mergeLoading ? "Merging…" : "Confirm merge"}
             </Button>
           </DialogFooter>
         </DialogContent>

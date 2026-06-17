@@ -3,7 +3,7 @@
  * Handles finding nearby locations within 200m threshold
  */
 
-import { query } from "./db"
+import { query, withTransaction } from "./db"
 import { getDistanceKm, getCenterPoint } from "./distance"
 import { generateUniqueLocationId } from "./location-id"
 
@@ -166,8 +166,16 @@ export async function updateLocationCentroid(
   )
 
   if (rows.length === 0) {
-    // No markers at this location, delete the location
-    await query("DELETE FROM locations WHERE id = $1", [locationId])
+    // No check-ins point directly at this location. Only delete it if it is also
+    // childless — a city/state legitimately has zero direct check-ins while still
+    // holding landmark (or city) children, and deleting it would orphan them.
+    const { rows: childRows } = await query<{ count: string }>(
+      "SELECT COUNT(*) as count FROM locations WHERE parent_location_id = $1",
+      [locationId],
+    )
+    if (parseInt(childRows[0].count, 10) === 0) {
+      await query("DELETE FROM locations WHERE id = $1", [locationId])
+    }
     return
   }
 
@@ -258,6 +266,132 @@ async function createLandmarkUnderCity(
   )
 
   return locationId
+}
+
+/**
+ * Error thrown for invalid merge requests (bad input, type mismatch, cycles).
+ * The API layer maps these to HTTP 400.
+ */
+export class MergeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "MergeError"
+  }
+}
+
+export type MergeResult = {
+  movedMarkers: number
+  movedChildren: number
+  deleted: number
+}
+
+/**
+ * Fold one or more source locations into a single target, preserving every
+ * check-in. Source check-ins and children are re-pointed at the target, then the
+ * sources are deleted — all inside one transaction so a failure rolls back
+ * cleanly. The target keeps its own name, type, parent, and identity; only its
+ * centroid is recalculated from the combined check-ins.
+ */
+export async function mergeLocations(
+  targetId: string,
+  sourceIds: string[],
+): Promise<MergeResult> {
+  // De-dupe and drop the target if it accidentally appears among the sources.
+  const sources = Array.from(new Set(sourceIds)).filter((id) => id !== targetId)
+  if (sources.length === 0) {
+    throw new MergeError(
+      "Provide at least one source location distinct from the target",
+    )
+  }
+
+  return withTransaction(async (q) => {
+    // Load target + sources together so we can validate existence and type.
+    const { rows: locs } = await q<{ id: string; type: string | null }>(
+      "SELECT id, type FROM locations WHERE id = ANY($1)",
+      [[targetId, ...sources]],
+    )
+
+    const target = locs.find((l) => l.id === targetId)
+    if (!target) throw new MergeError("Target location not found")
+
+    const foundSourceIds = locs
+      .filter((l) => l.id !== targetId)
+      .map((l) => l.id)
+    const missing = sources.filter((id) => !foundSourceIds.includes(id))
+    if (missing.length > 0) {
+      throw new MergeError(`Source location(s) not found: ${missing.join(", ")}`)
+    }
+
+    // Type guard: only merge like-into-like (landmark↔landmark or city↔city).
+    const types = new Set(locs.map((l) => l.type))
+    if (types.size > 1) {
+      throw new MergeError(
+        "Cannot merge across types (city vs landmark) — merge like-into-like only",
+      )
+    }
+
+    // Cycle guard: a source must not be an ancestor of the target, otherwise
+    // re-pointing children and deleting the source would orphan the target.
+    let cursor: string | null = targetId
+    const seen = new Set<string>()
+    while (cursor) {
+      const currentId: string = cursor
+      if (seen.has(currentId)) break
+      seen.add(currentId)
+      const { rows: parentRows } = await q<{ parent_location_id: string | null }>(
+        "SELECT parent_location_id FROM locations WHERE id = $1",
+        [currentId],
+      )
+      const parent: string | null = parentRows[0]?.parent_location_id ?? null
+      if (parent && sources.includes(parent)) {
+        throw new MergeError(
+          "Cannot merge a location into one of its own descendants",
+        )
+      }
+      cursor = parent
+    }
+
+    // Re-point check-ins from sources onto the target.
+    const markerUpdate = await q(
+      "UPDATE explorer_markers SET location_id = $1 WHERE location_id = ANY($2)",
+      [targetId, sources],
+    )
+
+    // Re-point children (relevant when merging cities/states). Never set a
+    // location's parent to itself.
+    const childUpdate = await q(
+      "UPDATE locations SET parent_location_id = $1 WHERE parent_location_id = ANY($2) AND id <> $1",
+      [targetId, sources],
+    )
+
+    // Delete the now-empty source locations.
+    const deletion = await q("DELETE FROM locations WHERE id = ANY($1)", [
+      sources,
+    ])
+
+    // Recalculate the target's centroid from its (now combined) direct
+    // check-ins. Skip for nodes with no direct check-ins (e.g. cities whose
+    // coords are nominal) — leaving coords untouched rather than zeroing them.
+    const { rows: markerRows } = await q<{
+      latitude: number
+      longitude: number
+    }>("SELECT latitude, longitude FROM explorer_markers WHERE location_id = $1", [
+      targetId,
+    ])
+    if (markerRows.length > 0) {
+      const center = getCenterPoint(markerRows)
+      await q(
+        "UPDATE locations SET latitude = $1, longitude = $2, updated_at = NOW() WHERE id = $3",
+        [center.latitude, center.longitude, targetId],
+      )
+    }
+
+    return {
+      movedMarkers: markerUpdate.rowCount ?? 0,
+      movedChildren: childUpdate.rowCount ?? 0,
+      deleted: deletion.rowCount ?? 0,
+    }
+  })
 }
 
 /**
