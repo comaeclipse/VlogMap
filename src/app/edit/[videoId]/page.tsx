@@ -269,7 +269,7 @@ export default function EditVideoPage({
         screenshotUrl: "",
         locationId: null,
         locationName: null,
-        locationType: null,
+        locationType: "landmark",
         parentLocationId: null,
         parentLocationName: null,
         timestamp: "",
@@ -378,7 +378,7 @@ export default function EditVideoPage({
   // Get city markers for parent dropdown
   // City locations can be retrieved from the locations API if needed in the future
 
-  const handleSave = async () => {
+  const handleSave = async ({ close = false }: { close?: boolean } = {}) => {
     setSaving(true)
     try {
       // Find the video URL from original markers, or reconstruct from videoId
@@ -437,6 +437,36 @@ export default function EditVideoPage({
           const error = await createRes.json().catch(() => ({}))
           throw new Error(error.error || "Failed to create new location")
         }
+
+        // New markers are created as landmarks. If the user picked "City Stop",
+        // switch the just-created marker to its parent city.
+        if (newLoc.locationType === "city") {
+          const created = (await createRes.json().catch(() => null)) as
+            | { id: number; latitude: number; longitude: number }
+            | null
+          if (created?.id) {
+            const switchRes = await fetch("/api/markers/batch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                videoUrl,
+                updates: [
+                  {
+                    id: created.id,
+                    latitude: created.latitude,
+                    longitude: created.longitude,
+                    requestedLocationType: "city",
+                  },
+                ],
+              }),
+            })
+            if (!switchRes.ok) {
+              const error = await switchRes.json().catch(() => ({}))
+              throw new Error(error.error || "Failed to set location type to city")
+            }
+          }
+        }
       }
 
       // Clear new locations after creation
@@ -478,7 +508,9 @@ export default function EditVideoPage({
 
       await mutate()
       toast.success("Changes saved and sorted by timestamp")
-      router.push("/admin")
+      if (close) {
+        router.push("/admin")
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed")
     } finally {
@@ -907,6 +939,36 @@ export default function EditVideoPage({
                       </Button>
                     </div>
                   </div>
+                  <div className="sm:col-span-2">
+                    <Label className="mb-2 block">Location Type</Label>
+                    <RadioGroup
+                      value={location.locationType || "landmark"}
+                      onValueChange={(value: string) =>
+                        updateNewLocation(location.id, "locationType", value as 'city' | 'landmark')
+                      }
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="city" id={`new-city-radio-${location.id}`} />
+                        <Label htmlFor={`new-city-radio-${location.id}`} className="font-normal cursor-pointer">
+                          City Stop
+                          <span className="ml-1 text-xs text-slate-400">(general wandering)</span>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="landmark" id={`new-landmark-radio-${location.id}`} />
+                        <Label htmlFor={`new-landmark-radio-${location.id}`} className="font-normal cursor-pointer">
+                          Landmark Stop
+                          <span className="ml-1 text-xs text-slate-400">(specific spot)</span>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    {location.locationType === "city" && !location.city && (
+                      <p className="mt-1.5 text-xs text-amber-400">
+                        Add a city (use the lookup button above) so this stop can attach to it.
+                      </p>
+                    )}
+                  </div>
                   <div>
                     <Label htmlFor={`new-timestamp-${location.id}`}>
                       Timestamp
@@ -972,7 +1034,7 @@ export default function EditVideoPage({
           <Button variant="secondary" onClick={() => router.push("/admin")}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button variant="outline" onClick={() => handleSave()} disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -981,7 +1043,20 @@ export default function EditVideoPage({
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Save All Changes
+                Save
+              </>
+            )}
+          </Button>
+          <Button onClick={() => handleSave({ close: true })} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save &amp; Close
               </>
             )}
           </Button>
