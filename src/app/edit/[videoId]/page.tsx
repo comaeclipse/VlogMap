@@ -116,7 +116,10 @@ export default function EditVideoPage({
 
   // Filter markers by videoId
   useEffect(() => {
-    if (!sortedAllMarkers) return
+    // Wait until markers have actually loaded. `sortedAllMarkers` is [] (truthy)
+    // while SWR is still fetching, which would make an existing video look new
+    // and wrongly trigger the YouTube prefill on every load.
+    if (!allMarkers) return
 
     const matchingMarkers = sortedAllMarkers.filter((m) => {
       if (!m.videoUrl) return false
