@@ -79,7 +79,9 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       )}
                     </div>
                     
-                    {marker.locationName && (
+                    {/* Landmark name line — only for landmark-tagged stops.
+                        City-level "wandering" stops show just the city line below. */}
+                    {marker.locationType === 'landmark' && marker.locationName && (
                       <div className="mt-1 flex items-center gap-2">
                         <Landmark className="h-4 w-4 text-amber-400" />
                         {marker.locationId ? (
