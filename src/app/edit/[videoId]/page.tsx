@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, use, useMemo } from "react"
+import { useEffect, useRef, useState, use, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
@@ -110,6 +110,9 @@ export default function EditVideoPage({
   const [deleting, setDeleting] = useState(false)
   const [geoLoadingFor, setGeoLoadingFor] = useState<number | null>(null)
   const [locationTypeChanges, setLocationTypeChanges] = useState<Record<number, 'city' | 'landmark'>>({})
+  // Tracks which (new) video we've already auto-prefilled from YouTube so we
+  // don't refetch on every SWR revalidation.
+  const prefilledVideoRef = useRef<string | null>(null)
 
   // Filter markers by videoId
   useEffect(() => {
@@ -131,6 +134,44 @@ export default function EditVideoPage({
         summary: "",
       })
       setLocations([])
+
+      // Auto-pull YouTube metadata once for a brand-new video so the editor
+      // isn't blank. Best-effort; only fills fields the user hasn't typed.
+      if (prefilledVideoRef.current !== videoId) {
+        prefilledVideoRef.current = videoId
+        void (async () => {
+          try {
+            const res = await fetch("/api/metadata", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                url: `https://www.youtube.com/watch?v=${videoId}`,
+              }),
+            })
+            if (!res.ok) return
+            const payload = (await res.json()) as {
+              title?: string
+              creator?: string
+              publishedAt?: string
+            }
+            setVideoInfo((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    title: prev.title || payload.title || "",
+                    creatorName: prev.creatorName || payload.creator || "",
+                    videoPublishedAt:
+                      prev.videoPublishedAt || payload.publishedAt || "",
+                  }
+                : prev,
+            )
+            if (payload.title) toast.success("Pulled video details from YouTube")
+          } catch {
+            // best-effort prefill; ignore failures
+          }
+        })()
+      }
       return
     }
 

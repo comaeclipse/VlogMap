@@ -4,13 +4,10 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
-import { ArrowLeft, LogOut, Pencil, Plus, RefreshCw, Trash2, MapPin, Map } from "lucide-react"
+import { ArrowLeft, LogOut, Plus, MapPin, Map, Loader2, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/sonner"
 import {
   Select,
@@ -20,10 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { groupMarkersByVideo } from "@/lib/group-markers"
-import { extractYouTubeId } from "@/lib/youtube"
+import { extractYouTubeId, getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { VideoCard } from "@/components/admin/video-card"
-import { BatchEditDialog } from "@/components/admin/batch-edit-dialog"
-import type { Marker, MarkerInput, VideoGroup, LocationEdit } from "@/types/markers"
+import type { Marker } from "@/types/markers"
 
 const fetcher = (url: string) =>
   fetch(url, { credentials: "include" }).then(async (res) => {
@@ -34,51 +30,33 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-const fetcherWithVideo = ([url, videoUrl]: [string, string]) =>
-  fetch(`${url}?videoUrl=${encodeURIComponent(videoUrl)}`, {
-    credentials: "include",
-  }).then(async (res) => {
-    if (!res.ok) {
-      const message = await res.text()
-      throw new Error(message || "Failed to load")
-    }
-    return res.json()
-  })
-
-const emptyMarker: MarkerInput = {
-  title: "",
-  creatorName: "",
-  channelUrl: "",
-  videoUrl: "",
-  description: "",
-  latitude: 0,
-  longitude: 0,
-  city: "",
-  district: "",
-  country: "",
-  videoPublishedAt: "",
-}
-
 export default function AdminPage() {
   const router = useRouter()
   const { data: authData, isLoading: authLoading } = useSWR<{ authenticated: boolean }>(
     "/api/auth/check",
     fetcher,
   )
-  const [form, setForm] = useState<MarkerInput>(emptyMarker)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [metaLoading, setMetaLoading] = useState(false)
-  const [geoLoading, setGeoLoading] = useState(false)
-  const [batchEditVideo, setBatchEditVideo] = useState<VideoGroup | null>(null)
-  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+
+  const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
+
+  // Add-video flow
+  const [newVideoUrl, setNewVideoUrl] = useState("")
+  const [preview, setPreview] = useState<{
+    title?: string
+    creator?: string
+    publishedAt?: string
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
   const [selectedCreator, setSelectedCreator] = useState<string>("")
   const [backfillLoading, setBackfillLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>("")
-  const { data, error, isLoading, mutate } = useSWR<Marker[]>("/api/markers", fetcher)
-  const { data: videoMarkers, mutate: mutateVideoMarkers } = useSWR<Marker[]>(
-    form.videoUrl ? ["/api/markers", form.videoUrl] : null,
-    fetcherWithVideo,
+
+  const newVideoId = useMemo(
+    () => extractYouTubeId(newVideoUrl.trim()),
+    [newVideoUrl],
   )
+
   const creatorOptions = useMemo(
     () =>
       Array.from(new Set((data ?? []).map((m) => m.creatorName).filter(Boolean))).sort((a, b) =>
@@ -105,7 +83,7 @@ export default function AdminPage() {
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
-    
+
     const query = searchQuery.toLowerCase()
     const matchingMarkers = (data || []).filter(marker => {
       return (
@@ -116,12 +94,10 @@ export default function AdminPage() {
         marker.title?.toLowerCase().includes(query)
       )
     })
-    
+
     const { grouped } = groupMarkersByVideo(matchingMarkers)
     return grouped.slice(0, 10)
   }, [searchQuery, data])
-
-  // City locations can be retrieved from the locations API if needed in the future
 
   useEffect(() => {
     if (!authLoading && authData && !authData.authenticated) {
@@ -129,9 +105,44 @@ export default function AdminPage() {
     }
   }, [authData, authLoading, router])
 
+  // Auto-pull YouTube details as soon as a valid video URL is entered.
+  useEffect(() => {
+    if (!newVideoId) {
+      setPreview(null)
+      return
+    }
+    let cancelled = false
+    setPreviewLoading(true)
+    fetch("/api/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${newVideoId}` }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (!cancelled && payload) setPreview(payload)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [newVideoId])
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     router.push("/login")
+  }
+
+  const handleAddVideo = () => {
+    if (!newVideoId) {
+      toast.error("Enter a valid YouTube video URL")
+      return
+    }
+    router.push(`/edit/${newVideoId}`)
   }
 
   const handleBackfillGeodata = async () => {
@@ -158,8 +169,7 @@ export default function AdminPage() {
       toast.success(
         `Backfill complete! Updated ${results.updated} locations${results.failed > 0 ? `, ${results.failed} failed` : ""}`,
       )
-      
-      // Refresh the markers data
+
       await mutate()
     } catch (error) {
       toast.error("Failed to backfill location data")
@@ -167,38 +177,6 @@ export default function AdminPage() {
     } finally {
       setBackfillLoading(false)
     }
-  }
-
-  const handleSave = async () => {
-    // Validate video URL for new markers
-    if (!editingId && !form.videoUrl) {
-      toast.error('Video URL is required for new markers')
-      return
-    }
-
-    const endpoint = editingId ? `/api/markers/${editingId}` : "/api/markers"
-    const method = editingId ? "PUT" : "POST"
-
-    const res = await fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(form),
-    })
-
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}))
-      toast.error(payload?.error || "Could not save marker")
-      return
-    }
-
-    setForm(emptyMarker)
-    setEditingId(null)
-    await mutate()
-    if (form.videoUrl) {
-      await mutateVideoMarkers()
-    }
-    toast.success(editingId ? "Marker updated" : "Marker created")
   }
 
   const handleDelete = async (id: number) => {
@@ -216,181 +194,16 @@ export default function AdminPage() {
     }
 
     await mutate()
-    if (form.videoUrl) {
-      await mutateVideoMarkers()
-    }
     toast.success("Marker deleted")
   }
 
-  const handleBatchSave = async (updates: LocationEdit[]) => {
-    if (!batchEditVideo) return
-
-    const res = await fetch('/api/markers/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        videoUrl: batchEditVideo.videoUrl,
-        updates,
-      }),
-    })
-
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}))
-      toast.error(payload?.error || 'Could not save changes')
+  const goToEditor = (videoUrl: string) => {
+    const id = extractYouTubeId(videoUrl)
+    if (!id) {
+      toast.error("This video has no usable YouTube URL")
       return
     }
-
-    await mutate()
-    toast.success(`Updated ${updates.length} location(s)`)
-  }
-
-  const handleAddLocationToVideo = (video: VideoGroup) => {
-    setEditingId(null)
-    setForm({
-      title: video.title,
-      creatorName: video.creatorName,
-      channelUrl: video.channelUrl ?? "",
-      videoUrl: video.videoUrl,
-      videoPublishedAt: video.videoPublishedAt ?? "",
-      description: "",
-      latitude: 0,
-      longitude: 0,
-      city: "",
-      district: "",
-      country: "",
-    })
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  const startEdit = (marker: Marker) => {
-    setEditingId(marker.id)
-    setForm({
-      title: marker.title,
-      creatorName: marker.creatorName,
-      channelUrl: marker.channelUrl ?? "",
-      videoUrl: marker.videoUrl ?? "",
-      description: marker.description ?? "",
-      latitude: marker.latitude,
-      longitude: marker.longitude,
-      city: marker.city ?? "",
-      district: marker.district ?? "",
-      country: marker.country ?? "",
-      videoPublishedAt: marker.videoPublishedAt ?? "",
-    })
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  const cancelEdit = () => {
-    setEditingId(null)
-    setForm(emptyMarker)
-  }
-
-  const startDuplicate = (marker: Marker) => {
-    setEditingId(null)
-    setForm({
-      title: marker.title,
-      creatorName: marker.creatorName,
-      channelUrl: marker.channelUrl ?? "",
-      videoUrl: marker.videoUrl ?? "",
-      description: marker.description ?? "",
-      latitude: marker.latitude,
-      longitude: marker.longitude,
-      city: marker.city ?? "",
-      district: marker.district ?? "",
-      country: marker.country ?? "",
-      videoPublishedAt: marker.videoPublishedAt ?? "",
-    })
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  const addLocationForVideo = () => {
-    setEditingId(null)
-    setForm((prev) => ({
-      ...prev,
-      latitude: 0,
-      longitude: 0,
-      city: "",
-      district: "",
-      country: "",
-      description: "",
-    }))
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  const fetchMetadata = async () => {
-    if (!form.videoUrl) {
-      toast.error("Add a video URL first")
-      return
-    }
-    setMetaLoading(true)
-    try {
-      const res = await fetch("/api/metadata", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ url: form.videoUrl }),
-      })
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}))
-        toast.error(payload?.error || "Could not fetch metadata")
-        return
-      }
-      const payload = (await res.json()) as {
-        title?: string
-        creator?: string
-        publishedAt?: string
-      }
-      setForm((prev) => ({
-        ...prev,
-        title: prev.title || payload.title || prev.title,
-        creatorName: prev.creatorName || payload.creator || prev.creatorName,
-        videoPublishedAt: payload.publishedAt || prev.videoPublishedAt,
-      }))
-      toast.success("Metadata applied")
-    } finally {
-      setMetaLoading(false)
-    }
-  }
-
-  const fetchCity = async () => {
-    if (Number.isNaN(form.latitude) || Number.isNaN(form.longitude)) {
-      toast.error("Enter coordinates first")
-      return
-    }
-    setGeoLoading(true)
-    try {
-      const res = await fetch("/api/geocode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ latitude: form.latitude, longitude: form.longitude }),
-      })
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}))
-        toast.error(payload?.error || "Could not lookup location")
-        return
-      }
-      const payload = (await res.json()) as {
-        city?: string | null
-        district?: string | null
-        country?: string | null
-      }
-      if (payload.city || payload.district || payload.country) {
-        setForm((prev) => ({
-          ...prev,
-          city: payload.city || prev.city,
-          district: payload.district || prev.district,
-          country: payload.country || prev.country,
-        }))
-        const parts = [payload.city, payload.district, payload.country].filter(Boolean)
-        toast.success(`Location: ${parts.join(", ")}`)
-      } else {
-        toast.error("Location not found")
-      }
-    } finally {
-      setGeoLoading(false)
-    }
+    router.push(`/edit/${id}`)
   }
 
   if (authLoading || !authData?.authenticated) {
@@ -414,7 +227,7 @@ export default function AdminPage() {
             </Link>
             <h1 className="text-lg font-semibold">Admin Portal</h1>
           </div>
-          
+
           {/* Search box */}
           <div className="relative flex-1 max-w-md">
             <Input
@@ -432,7 +245,7 @@ export default function AdminPage() {
                 ×
               </button>
             )}
-            
+
             {/* Dropdown results */}
             {searchQuery && searchResults.length > 0 && (
               <div className="absolute top-full mt-1 w-full rounded-lg border border-white/10 bg-slate-900 shadow-xl max-h-96 overflow-y-auto z-50">
@@ -453,7 +266,7 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-            
+
             {/* No results message */}
             {searchQuery && searchResults.length === 0 && (
               <div className="absolute top-full mt-1 w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-3 z-50">
@@ -461,15 +274,15 @@ export default function AdminPage() {
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-400">
               {isLoading ? "Loading..." : `${data?.length ?? 0} markers`}
             </span>
             <Link href="/admin/locations">
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="gap-2"
                 title="Manage location names"
               >
@@ -477,9 +290,9 @@ export default function AdminPage() {
                 Locations
               </Button>
             </Link>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleBackfillGeodata}
               disabled={backfillLoading}
               className="gap-2"
@@ -496,285 +309,104 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-8 p-4 md:p-6">
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* Form */}
-          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
-            <h2 className="mb-4 text-base font-semibold">
-              {editingId ? "Edit Marker" : "Add New Marker"}
-            </h2>
+      <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
+        {/* Add Video */}
+        <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+          <h2 className="mb-1 text-base font-semibold">Add a video</h2>
+          <p className="mb-4 text-sm text-slate-400">
+            Paste a YouTube URL. We&apos;ll pull the title, creator, and publish
+            date, then take you to the editor to drop locations.
+          </p>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex-1 space-y-3">
               <Input
-                id="title"
-                placeholder="City skyline walk"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="creator">Creator</Label>
-              <Input
-                id="creator"
-                list="creator-options"
-                placeholder="Channel name"
-                value={form.creatorName}
-                onChange={(e) => setForm({ ...form, creatorName: e.target.value })}
-              />
-              <datalist id="creator-options">
-                {creatorOptions.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="channelUrl">Channel URL</Label>
-              <Input
-                id="channelUrl"
-                placeholder="https://youtube.com/@channel"
-                value={form.channelUrl ?? ""}
-                onChange={(e) => setForm({ ...form, channelUrl: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="videoUrl">
-                Video URL <span className="text-red-400">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="videoUrl"
-                  placeholder="https://youtu.be/demo"
-                  value={form.videoUrl ?? ""}
-                  onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  onClick={fetchMetadata}
-                  disabled={metaLoading}
-                  title="Fetch title, creator, published date"
-                >
-                  <RefreshCw className={`h-4 w-4 ${metaLoading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-              {!form.videoUrl && !editingId && (
-                <p className="text-xs text-red-400">Video URL is required for new markers</p>
-              )}
-            </div>
-            <div className="flex items-center justify-between sm:col-span-2">
-              <p className="text-sm text-slate-400">
-                {videoMarkers?.length
-                  ? `${videoMarkers.length} location${videoMarkers.length > 1 ? "s" : ""} for this video`
-                  : "No locations loaded for this video yet"}
-              </p>
-              <Button type="button" size="sm" variant="outline" onClick={addLocationForVideo}>
-                Add location for this video
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="videoPublishedAt">Video published at</Label>
-              <Input
-                id="videoPublishedAt"
-                placeholder="2024-01-01T12:00:00Z"
-                value={form.videoPublishedAt ?? ""}
-                onChange={(e) => setForm({ ...form, videoPublishedAt: e.target.value })}
-              />
-            </div>
-            <div className="sm:col-span-2 space-y-3 rounded-lg border border-white/10 bg-slate-900/60 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-white">Locations for this video</p>
-                  <p className="text-xs text-slate-400">
-                    {form.videoUrl
-                      ? videoMarkers
-                        ? `${videoMarkers.length} location${videoMarkers.length === 1 ? "" : "s"}`
-                        : "Loading..."
-                      : "Enter a video URL to load locations"}
-                  </p>
-                </div>
-                <Button type="button" size="sm" variant="outline" onClick={addLocationForVideo}>
-                  Add location
-                </Button>
-              </div>
-              {form.videoUrl && videoMarkers?.length ? (
-                <div className="space-y-2">
-                  {videoMarkers.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex flex-col gap-2 rounded-md border border-white/10 bg-slate-800/60 p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="space-y-1 text-sm text-slate-200">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium">
-                            {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
-                            {m.city ? ` · ${m.city}` : ""}
-                          </p>
-                          {m.locationType === 'city' && (
-                            <Badge variant="secondary" className="text-xs">City</Badge>
-                          )}
-                          {m.locationType === 'landmark' && (
-                            <Badge variant="default" className="text-xs">Landmark</Badge>
-                          )}
-                        </div>
-                        {m.locationId && (
-                          <p className="text-xs text-blue-400 font-mono">
-                            📍 {m.locationName || m.locationId}
-                          </p>
-                        )}
-                        {m.parentLocationName && (
-                          <p className="text-xs text-slate-500">
-                            Parent: {m.parentLocationName}
-                          </p>
-                        )}
-                        {m.description ? (
-                          <p className="text-xs text-slate-400 line-clamp-2">{m.description}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="secondary" onClick={() => startEdit(m)}>
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(m.id)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="coords">Paste Coordinates</Label>
-              <Input
-                id="coords"
-                placeholder="55.8828, 26.5463"
-                onChange={(e) => {
-                  const match = e.target.value.match(
-                    /(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)/
-                  )
-                  if (match) {
-                    setForm({
-                      ...form,
-                      latitude: parseFloat(match[1]),
-                      longitude: parseFloat(match[2]),
-                    })
-                  }
+                autoFocus
+                placeholder="https://youtu.be/… or https://www.youtube.com/watch?v=…"
+                value={newVideoUrl}
+                onChange={(e) => setNewVideoUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddVideo()
                 }}
               />
-              <p className="text-xs text-slate-500">
-                Paste &quot;lat, lng&quot; to auto-fill below
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="latitude">Latitude</Label>
-              <Input
-                id="latitude"
-                type="number"
-                step="0.0001"
-                value={form.latitude}
-                onChange={(e) => setForm({ ...form, latitude: Number(e.target.value) })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="longitude">Longitude</Label>
-              <Input
-                id="longitude"
-                type="number"
-                step="0.0001"
-                value={form.longitude}
-                onChange={(e) => setForm({ ...form, longitude: Number(e.target.value) })}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="city">City (auto-filled)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="city"
-                  placeholder="City / locality"
-                  value={form.city ?? ""}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  onClick={fetchCity}
-                  disabled={geoLoading}
-                  title="Lookup location by coordinates"
-                >
-                  <RefreshCw className={`h-4 w-4 ${geoLoading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="district">District / State</Label>
-              <Input
-                id="district"
-                placeholder="State / Province"
-                value={form.district ?? ""}
-                onChange={(e) => setForm({ ...form, district: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                placeholder="Country"
-                value={form.country ?? ""}
-                onChange={(e) => setForm({ ...form, country: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Night tour, hidden food stalls, aerials..."
-                value={form.description ?? ""}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </div>
-          </div>
 
-          <div className="mt-4 flex gap-2">
-            <Button onClick={handleSave} className="gap-2">
+              {newVideoUrl.trim() && !newVideoId && (
+                <p className="text-xs text-red-400">
+                  That doesn&apos;t look like a YouTube video URL.
+                </p>
+              )}
+
+              {newVideoId && (
+                <div className="flex gap-3 rounded-lg border border-white/10 bg-slate-800/50 p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getYouTubeThumbnailUrl(`https://www.youtube.com/watch?v=${newVideoId}`) ?? ""}
+                    alt=""
+                    className="h-16 w-28 shrink-0 rounded object-cover bg-slate-700"
+                    onError={(e) => {
+                      const t = e.target as HTMLImageElement
+                      if (t.src.includes("maxresdefault")) {
+                        t.src = t.src.replace("maxresdefault", "hqdefault")
+                      }
+                    }}
+                  />
+                  <div className="min-w-0 flex-1 text-sm">
+                    {previewLoading ? (
+                      <span className="flex items-center gap-2 text-slate-400">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Pulling details from YouTube…
+                      </span>
+                    ) : preview?.title ? (
+                      <>
+                        <p className="font-medium text-slate-100 line-clamp-2">
+                          {preview.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {preview.creator}
+                          {preview.publishedAt
+                            ? ` · ${new Date(preview.publishedAt).toLocaleDateString()}`
+                            : ""}
+                        </p>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">
+                        Ready — details will be filled in the editor.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button onClick={handleAddVideo} disabled={!newVideoId} className="gap-2">
               <Plus className="h-4 w-4" />
-              {editingId ? "Update Marker" : "Add Marker"}
+              Add Video
             </Button>
-            {editingId && (
-              <Button variant="secondary" onClick={cancelEdit}>
-                Cancel
-              </Button>
-            )}
           </div>
-          </section>
+        </section>
 
-          {/* Videos & Locations */}
-          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
-            <h2 className="mb-4 text-base font-semibold">Videos & Locations</h2>
+        {/* Videos & Locations */}
+        <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+          <h2 className="mb-4 text-base font-semibold">Videos &amp; Locations</h2>
 
-            <div className="mb-4">
-              <Label htmlFor="creator-select" className="mb-2 block text-sm">
-                Select Creator
-              </Label>
-              <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-                <SelectTrigger id="creator-select" className="w-full">
-                  <SelectValue placeholder="Choose a creator..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="all">All Creators</SelectItem>
-                  {creatorOptions.map((creator) => (
-                    <SelectItem key={creator} value={creator}>
-                      {creator}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="mb-4">
+            <label htmlFor="creator-select" className="mb-2 block text-sm">
+              Select Creator
+            </label>
+            <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+              <SelectTrigger id="creator-select" className="w-full">
+                <SelectValue placeholder="Choose a creator..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="all">All Creators</SelectItem>
+                {creatorOptions.map((creator) => (
+                  <SelectItem key={creator} value={creator}>
+                    {creator}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {error && (
             <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
@@ -787,7 +419,7 @@ export default function AdminPage() {
           )}
 
           {data && data.length === 0 && (
-            <p className="text-sm text-slate-400">No markers yet. Add one above.</p>
+            <p className="text-sm text-slate-400">No videos yet. Add one above.</p>
           )}
 
           {selectedCreator === "" && data && data.length > 0 && (
@@ -805,11 +437,8 @@ export default function AdminPage() {
               <VideoCard
                 key={video.videoUrl}
                 video={video}
-                onEditVideo={(v) => {
-                  setBatchEditVideo(v)
-                  setBatchDialogOpen(true)
-                }}
-                onAddLocation={handleAddLocationToVideo}
+                onEditVideo={(v) => goToEditor(v.videoUrl)}
+                onAddLocation={(v) => goToEditor(v.videoUrl)}
                 onDeleteLocation={handleDelete}
               />
             ))}
@@ -820,8 +449,9 @@ export default function AdminPage() {
             <div className="mt-6 border-t border-white/10 pt-6">
               <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
                 <p className="text-sm text-amber-200">
-                  <strong>Action Required:</strong> These markers don't have a video URL.
-                  Edit each marker to add a video URL, or delete if no longer needed.
+                  <strong>Action Required:</strong> These markers don&apos;t have a video URL,
+                  so they can&apos;t be opened in the editor. Re-add them via &quot;Add a video&quot;
+                  above, or delete them.
                 </p>
               </div>
 
@@ -846,10 +476,6 @@ export default function AdminPage() {
                       )}
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => startEdit(marker)}>
-                        <Pencil className="mr-1 h-3 w-3" />
-                        Edit
-                      </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDelete(marker.id)}>
                         <Trash2 className="mr-1 h-3 w-3" />
                         Delete
@@ -860,16 +486,7 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          </section>
-        </div>
-
-        {/* Batch Edit Dialog */}
-        <BatchEditDialog
-          video={batchEditVideo}
-          open={batchDialogOpen}
-          onOpenChange={setBatchDialogOpen}
-          onSave={handleBatchSave}
-        />
+        </section>
       </main>
     </div>
   )
