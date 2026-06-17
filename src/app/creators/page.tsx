@@ -197,7 +197,7 @@ export default function CreatorsPage() {
                         />
                         <div className="min-w-0 flex-1 pt-1">
                           <Link
-                            href={`/creator/${encodeURIComponent(creator.creator)}`}
+                            href={`/creator/${encodeURIComponent(creator.channelId ?? creator.creator)}`}
                             className="group/link"
                           >
                             <h3 className="creators-title text-xl font-semibold text-white transition-colors group-hover/link:text-blue-300">

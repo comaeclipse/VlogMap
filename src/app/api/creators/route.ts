@@ -9,6 +9,9 @@ type CreatorStatsRow = {
   city_count: string
   location_count: string
   channel_url: string | null
+  channel_id: string | null
+  handle: string | null
+  avatar_url: string | null
 }
 
 export async function GET() {
@@ -19,10 +22,13 @@ export async function GET() {
         COUNT(DISTINCT m.video_url) as video_count,
         COUNT(DISTINCT m.city) FILTER (WHERE m.city IS NOT NULL) as city_count,
         COUNT(*) as location_count,
-        c.channel_url
+        c.channel_url,
+        c.channel_id,
+        c.handle,
+        c.avatar_url
       FROM creators c
       LEFT JOIN explorer_markers m ON m.creator_id = c.id
-      GROUP BY c.id, c.name, c.channel_url
+      GROUP BY c.id, c.name, c.channel_url, c.channel_id, c.handle, c.avatar_url
       ORDER BY video_count DESC, c.name ASC
     `)
 
@@ -32,6 +38,9 @@ export async function GET() {
       cityCount: parseInt(row.city_count, 10),
       locationCount: parseInt(row.location_count, 10),
       channelUrl: row.channel_url,
+      channelId: row.channel_id,
+      handle: row.handle,
+      avatarUrl: row.avatar_url,
     }))
 
     return NextResponse.json(creators)

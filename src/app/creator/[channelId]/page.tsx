@@ -1,7 +1,7 @@
 import { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Globe2, MapPin, Video, Compass, Users } from "lucide-react"
+import { Globe2, MapPin, Video, Users } from "lucide-react"
 
 import { query, mapMarkerRow } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
@@ -12,36 +12,70 @@ import { Button } from "@/components/ui/button"
 import { VideoThumbnail } from "@/components/video-thumbnail"
 import styles from "./page.module.css"
 
+type CreatorRow = {
+  id: number
+  name: string
+  channel_url: string | null
+  channel_id: string | null
+  handle: string | null
+  avatar_url: string | null
+}
+
+// Resolve a creator by canonical channel id first, falling back to name so old
+// /creator/<name> links keep working.
+async function findCreator(identifier: string): Promise<CreatorRow | null> {
+  const { rows } = await query<CreatorRow>(
+    `SELECT id, name, channel_url, channel_id, handle, avatar_url
+       FROM creators
+      WHERE channel_id = $1 OR name = $1
+      LIMIT 1`,
+    [identifier],
+  )
+  return rows[0] ?? null
+}
+
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ creatorName: string }>
+  params: Promise<{ channelId: string }>
 }): Promise<Metadata> {
-  const { creatorName } = await params
-  const decodedName = decodeURIComponent(creatorName)
+  const { channelId } = await params
+  const creator = await findCreator(decodeURIComponent(channelId))
+  const name = creator?.name ?? "Creator"
 
   return {
-    title: `${decodedName} - Videos | VlogMap`,
-    description: `Explore all filming locations from ${decodedName}'s videos`,
+    title: `${name} - Videos | VlogMap`,
+    description: `Explore all filming locations from ${name}'s videos`,
   }
 }
 
 export default async function CreatorPage({
   params,
 }: {
-  params: Promise<{ creatorName: string }>
+  params: Promise<{ channelId: string }>
 }) {
-  const { creatorName } = await params
-  const decodedName = decodeURIComponent(creatorName)
+  const { channelId } = await params
+  const identifier = decodeURIComponent(channelId)
+
+  const creator = await findCreator(identifier)
+  if (!creator) {
+    notFound()
+  }
+
+  // Canonicalize on the channel id: if reached via name (or anything that isn't
+  // the channel id) and we know the channel id, redirect to it.
+  if (creator.channel_id && identifier !== creator.channel_id) {
+    permanentRedirect(`/creator/${encodeURIComponent(creator.channel_id)}`)
+  }
 
   // Fetch all markers for this creator
   const { rows } = await query<MarkerRow>(
     `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city, m.video_published_at, m.screenshot_url, m.summary, m.created_at
      FROM explorer_markers m
      JOIN creators c ON m.creator_id = c.id
-     WHERE c.name = $1
+     WHERE m.creator_id = $1
      ORDER BY m.created_at DESC`,
-    [decodedName]
+    [creator.id],
   )
 
   if (rows.length === 0) {
@@ -53,8 +87,9 @@ export default async function CreatorPage({
   // Group by video
   const { grouped: videos } = groupMarkersByVideo(markers)
 
-  const channelUrl = markers[0]?.channelUrl
-  const gradient = getCreatorGradient(decodedName)
+  const channelUrl = creator.channel_url ?? markers[0]?.channelUrl
+  const avatarUrl = creator.avatar_url
+  const gradient = getCreatorGradient(creator.name)
 
   // Get unique cities
   const uniqueCities = new Set(markers.map(m => m.city).filter(Boolean))
@@ -99,12 +134,21 @@ export default async function CreatorPage({
         {/* Creator Header */}
         <div className="mb-12 space-y-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
-            {/* Avatar */}
+            {/* Avatar — channel logo when available, else creator gradient */}
             <div className="relative">
-              <div
-                className={`${styles.creatorAvatarGlow} h-24 w-24 rounded-full border-2 border-white/20 md:h-32 md:w-32`}
-                style={{ background: gradient }}
-              />
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={`${creator.name} channel logo`}
+                  className={`${styles.creatorAvatarGlow} h-24 w-24 rounded-full border-2 border-white/20 object-cover md:h-32 md:w-32`}
+                />
+              ) : (
+                <div
+                  className={`${styles.creatorAvatarGlow} h-24 w-24 rounded-full border-2 border-white/20 md:h-32 md:w-32`}
+                  style={{ background: gradient }}
+                />
+              )}
               {/* Glow background */}
               <div
                 className="absolute inset-0 -z-10 scale-150 rounded-full opacity-30 blur-3xl"
@@ -116,7 +160,7 @@ export default async function CreatorPage({
             <div className="flex-1 space-y-4">
               <div>
                 <h1 className={`${styles.creatorTitle} text-4xl font-bold text-white md:text-5xl lg:text-6xl`}>
-                  {decodedName}
+                  {creator.name}
                 </h1>
                 <p className="mt-2 text-lg text-slate-400">Explorer & Content Creator</p>
               </div>
