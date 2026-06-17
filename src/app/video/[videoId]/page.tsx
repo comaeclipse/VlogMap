@@ -87,10 +87,14 @@ export default async function VideoDetailPage({
        m.video_published_at, m.screenshot_url, m.summary, m.location_id,
        m.type, m.parent_city_id, m.timestamp, m.created_at,
        l.name as location_name,
+       l.type as location_type,
+       l.parent_location_id as parent_location_id,
+       pc.name as parent_location_name,
        p.title as parent_city_name
      FROM explorer_markers m
      JOIN creators c ON m.creator_id = c.id
      LEFT JOIN locations l ON m.location_id = l.id
+     LEFT JOIN locations pc ON l.parent_location_id = pc.id
      LEFT JOIN explorer_markers p ON m.parent_city_id = p.id
      WHERE m.video_url ILIKE $1
      ORDER BY
