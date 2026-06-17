@@ -1,136 +1,124 @@
-"use client"
-
-import { useState, useMemo } from "react"
+import type { Metadata } from "next"
 import Link from "next/link"
-import useSWR from "swr"
-import { ArrowLeft, Globe2, MapPin, Video, ChevronRight, ChevronDown, Users } from "lucide-react"
+import { Globe2, MapPin, Video, ChevronRight, Users } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
+import { getLocationsWithStats, type LocationWithStats } from "@/lib/locations-data"
 
-type LocationWithStats = {
-  id: string
-  latitude: number
-  longitude: number
-  city: string | null
-  district: string | null
-  country: string | null
-  name: string | null
-  createdAt: string
-  markerCount: number
-  videoCount: number
+export const revalidate = 60
+
+export const metadata: Metadata = {
+  title: "Locations | VlogMap",
+  description: "Browse all filming locations on VlogMap, organized by country, state, and city.",
 }
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 type HierarchyNode = {
   locations: LocationWithStats[]
   cities?: Record<string, HierarchyNode>
   districts?: Record<string, HierarchyNode>
 }
-
 type Hierarchy = Record<string, HierarchyNode>
 
-export default function LocationsPage() {
-  const { data, error, isLoading } = useSWR<{
-    locations: LocationWithStats[]
-    totalCount: number
-  }>("/api/locations", fetcher)
+function buildHierarchy(locations: LocationWithStats[]): Hierarchy {
+  const tree: Hierarchy = {}
+  for (const location of locations) {
+    const country = location.country || "Unknown Country"
+    const isUSA = country === "United States" || country === "USA"
+    const district = location.district || "Unknown District"
+    const city = location.city || "Unknown City"
 
-  const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set())
-  const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set())
-  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set())
+    if (!tree[country]) tree[country] = { locations: [], districts: {}, cities: {} }
 
-  // Build hierarchy
-  const hierarchy = useMemo(() => {
-    if (!data?.locations) return {}
-
-    const tree: Hierarchy = {}
-
-    data.locations.forEach((location) => {
-      const country = location.country || "Unknown Country"
-      const isUSA = country === "United States" || country === "USA"
-      const district = location.district || "Unknown District"
-      const city = location.city || "Unknown City"
-
-      if (!tree[country]) {
-        tree[country] = { locations: [], districts: {}, cities: {} }
+    if (isUSA) {
+      if (!tree[country].districts![district]) {
+        tree[country].districts![district] = { locations: [], cities: {} }
       }
-
-      if (isUSA) {
-        // USA: Use district (state) level
-        if (!tree[country].districts![district]) {
-          tree[country].districts![district] = { locations: [], cities: {} }
-        }
-
-        if (!tree[country].districts![district].cities![city]) {
-          tree[country].districts![district].cities![city] = { locations: [] }
-        }
-
-        tree[country].districts![district].cities![city].locations.push(location)
-      } else {
-        // Non-USA: Skip district level, go directly to cities
-        if (!tree[country].cities![city]) {
-          tree[country].cities![city] = { locations: [] }
-        }
-
-        tree[country].cities![city].locations.push(location)
+      if (!tree[country].districts![district].cities![city]) {
+        tree[country].districts![district].cities![city] = { locations: [] }
       }
-    })
-
-    return tree
-  }, [data?.locations])
-
-  const toggleCountry = (country: string) => {
-    const newSet = new Set(expandedCountries)
-    if (newSet.has(country)) {
-      newSet.delete(country)
+      tree[country].districts![district].cities![city].locations.push(location)
     } else {
-      newSet.add(country)
+      if (!tree[country].cities![city]) tree[country].cities![city] = { locations: [] }
+      tree[country].cities![city].locations.push(location)
     }
-    setExpandedCountries(newSet)
+  }
+  return tree
+}
+
+function countCity(cityNode: HierarchyNode): number {
+  return cityNode.locations.length
+}
+function countDistrict(districtNode: HierarchyNode): number {
+  return Object.values(districtNode.cities || {}).reduce((n, c) => n + countCity(c), 0)
+}
+function countCountry(countryNode: HierarchyNode): number {
+  let count = 0
+  Object.values(countryNode.districts || {}).forEach((d) => (count += countDistrict(d)))
+  Object.values(countryNode.cities || {}).forEach((c) => (count += countCity(c)))
+  return count
+}
+
+function plural(n: number) {
+  return n !== 1 ? "s" : ""
+}
+
+function LocationLink({ location }: { location: LocationWithStats }) {
+  return (
+    <Link
+      href={`/location/${location.id}`}
+      className="flex items-center justify-between px-4 py-3 hover:bg-slate-600/20 transition-colors group/link"
+    >
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <MapPin className="h-4 w-4 text-pink-400 shrink-0" />
+        <span className={location.name ? "text-slate-200 group-hover/link:text-white" : "text-slate-500"}>
+          {location.name || `(Unnamed location ${location.id})`}
+        </span>
+      </div>
+      <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-1.5 text-sm">
+          <Video className="h-3.5 w-3.5 text-blue-400" />
+          <span className="text-slate-400">{location.videoCount}</span>
+        </div>
+        <span className="font-mono text-xs text-slate-600">{location.id}</span>
+      </div>
+    </Link>
+  )
+}
+
+function CityDetails({ city, cityNode }: { city: string; cityNode: HierarchyNode }) {
+  const count = countCity(cityNode)
+  return (
+    <details className="group/city rounded border border-white/5 bg-slate-700/20 overflow-hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2 hover:bg-slate-600/20 transition-colors [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="h-4 w-4 text-slate-500 transition-transform group-open/city:rotate-90" />
+        <span className="text-slate-300">{city}</span>
+        <span className="text-sm text-slate-500">
+          ({count} location{plural(count)})
+        </span>
+      </summary>
+      <div className="border-t border-white/5 divide-y divide-white/5">
+        {[...cityNode.locations]
+          .sort((a, b) => b.videoCount - a.videoCount)
+          .map((location) => (
+            <LocationLink key={location.id} location={location} />
+          ))}
+      </div>
+    </details>
+  )
+}
+
+export default async function LocationsPage() {
+  let locations: LocationWithStats[] = []
+  let failed = false
+  try {
+    locations = await getLocationsWithStats()
+  } catch (error) {
+    console.error("Failed to load locations", error)
+    failed = true
   }
 
-  const toggleDistrict = (key: string) => {
-    const newSet = new Set(expandedDistricts)
-    if (newSet.has(key)) {
-      newSet.delete(key)
-    } else {
-      newSet.add(key)
-    }
-    setExpandedDistricts(newSet)
-  }
-
-  const toggleCity = (key: string) => {
-    const newSet = new Set(expandedCities)
-    if (newSet.has(key)) {
-      newSet.delete(key)
-    } else {
-      newSet.add(key)
-    }
-    setExpandedCities(newSet)
-  }
-
-  const countLocationsInCountry = (countryNode: HierarchyNode): number => {
-    let count = 0
-    // Count from districts (for USA)
-    Object.values(countryNode.districts || {}).forEach((districtNode) => {
-      Object.values(districtNode.cities || {}).forEach((cityNode) => {
-        count += cityNode.locations.length
-      })
-    })
-    // Count from cities directly (for non-USA)
-    Object.values(countryNode.cities || {}).forEach((cityNode) => {
-      count += cityNode.locations.length
-    })
-    return count
-  }
-
-  const countLocationsInDistrict = (districtNode: HierarchyNode): number => {
-    let count = 0
-    Object.values(districtNode.cities || {}).forEach((cityNode) => {
-      count += cityNode.locations.length
-    })
-    return count
-  }
+  const hierarchy = buildHierarchy(locations)
+  const countries = Object.entries(hierarchy).sort(([a], [b]) => a.localeCompare(b))
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -167,30 +155,17 @@ export default function LocationsPage() {
       <main className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-bold">All Locations</h1>
-          {isLoading ? (
-            <p className="mt-2 text-slate-400">Loading locations...</p>
-          ) : error ? (
-            <p className="mt-2 text-red-400">Failed to load locations</p>
-          ) : (
-            <p className="mt-2 text-slate-400">
-              Browse {data?.totalCount || 0} filming location
-              {data?.totalCount !== 1 ? "s" : ""} organized by country
-            </p>
-          )}
+          <p className="mt-2 text-slate-400">
+            Browse {locations.length} filming location{plural(locations.length)} organized by country
+          </p>
         </div>
 
-        {isLoading ? (
-          <div className="rounded-lg border border-white/10 bg-slate-900/60 p-12 text-center">
-            <p className="text-slate-400">Loading locations...</p>
-          </div>
-        ) : error ? (
+        {failed ? (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-12 text-center">
-            <h2 className="text-xl font-semibold mb-2 text-red-300">
-              Failed to load locations
-            </h2>
+            <h2 className="text-xl font-semibold mb-2 text-red-300">Failed to load locations</h2>
             <p className="text-red-400">Please try again later</p>
           </div>
-        ) : !data || data.locations.length === 0 ? (
+        ) : locations.length === 0 ? (
           <div className="rounded-lg border border-white/10 bg-slate-900/60 p-12 text-center">
             <MapPin className="mx-auto h-12 w-12 text-slate-600 mb-4" />
             <h2 className="text-xl font-semibold mb-2">No locations yet</h2>
@@ -200,185 +175,53 @@ export default function LocationsPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {Object.entries(hierarchy)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([country, countryNode]) => {
-                const countryKey = country
-                const isCountryExpanded = expandedCountries.has(countryKey)
-                const locationCount = countLocationsInCountry(countryNode)
+            {countries.map(([country, countryNode]) => {
+              const isUSA = country === "United States" || country === "USA"
+              const count = countCountry(countryNode)
+              return (
+                <details key={country} className="group/country rounded-lg border border-white/10 bg-slate-900/60 overflow-hidden">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-slate-800/50 transition-colors [&::-webkit-details-marker]:hidden">
+                    <ChevronRight className="h-5 w-5 text-slate-400 transition-transform group-open/country:rotate-90" />
+                    <span className="text-lg font-semibold text-slate-50">{country}</span>
+                    <span className="text-sm text-slate-400">
+                      ({count} location{plural(count)})
+                    </span>
+                  </summary>
 
-                return (
-                  <div key={countryKey} className="rounded-lg border border-white/10 bg-slate-900/60 overflow-hidden">
-                    <button
-                      onClick={() => toggleCountry(countryKey)}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800/50 transition-colors"
-                    >
-                      {isCountryExpanded ? (
-                        <ChevronDown className="h-5 w-5 text-slate-400" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-slate-400" />
-                      )}
-                      <span className="text-lg font-semibold text-slate-50">{country}</span>
-                      <span className="text-sm text-slate-400">
-                        ({locationCount} location{locationCount !== 1 ? "s" : ""})
-                      </span>
-                    </button>
-
-                    {isCountryExpanded && (
-                      <div className="border-t border-white/5 px-4 py-2 space-y-2">
-                        {/* USA: Show State > City hierarchy */}
-                        {(country === "United States" || country === "USA") ? (
-                          Object.entries(countryNode.districts || {})
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([district, districtNode]) => {
-                              const districtKey = `${countryKey}-${district}`
-                              const isDistrictExpanded = expandedDistricts.has(districtKey)
-                              const districtLocationCount = countLocationsInDistrict(districtNode)
-
-                              return (
-                                <div key={districtKey} className="rounded border border-white/5 bg-slate-800/30 overflow-hidden">
-                                  <button
-                                    onClick={() => toggleDistrict(districtKey)}
-                                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-700/30 transition-colors"
-                                  >
-                                    {isDistrictExpanded ? (
-                                      <ChevronDown className="h-4 w-4 text-slate-400" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4 text-slate-400" />
-                                    )}
-                                    <span className="font-medium text-slate-200">{district}</span>
-                                    <span className="text-sm text-slate-500">
-                                      ({districtLocationCount} location{districtLocationCount !== 1 ? "s" : ""})
-                                    </span>
-                                  </button>
-
-                                  {isDistrictExpanded && (
-                                    <div className="border-t border-white/5 px-4 py-2 space-y-2">
-                                      {Object.entries(districtNode.cities || {})
-                                        .sort(([a], [b]) => a.localeCompare(b))
-                                        .map(([city, cityNode]) => {
-                                          const cityKey = `${districtKey}-${city}`
-                                          const isCityExpanded = expandedCities.has(cityKey)
-                                          const cityLocationCount = cityNode.locations.length
-
-                                          return (
-                                            <div key={cityKey} className="rounded border border-white/5 bg-slate-700/20 overflow-hidden">
-                                              <button
-                                                onClick={() => toggleCity(cityKey)}
-                                                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-slate-600/20 transition-colors"
-                                              >
-                                                {isCityExpanded ? (
-                                                  <ChevronDown className="h-4 w-4 text-slate-500" />
-                                                ) : (
-                                                  <ChevronRight className="h-4 w-4 text-slate-500" />
-                                                )}
-                                                <span className="text-slate-300">{city}</span>
-                                                <span className="text-sm text-slate-500">
-                                                  ({cityLocationCount} location{cityLocationCount !== 1 ? "s" : ""})
-                                                </span>
-                                              </button>
-
-                                              {isCityExpanded && (
-                                                <div className="border-t border-white/5 divide-y divide-white/5">
-                                                  {cityNode.locations
-                                                    .sort((a, b) => b.videoCount - a.videoCount)
-                                                    .map((location) => (
-                                                      <Link
-                                                        key={location.id}
-                                                        href={`/location/${location.id}`}
-                                                        className="flex items-center justify-between px-4 py-3 hover:bg-slate-600/20 transition-colors group"
-                                                      >
-                                                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                          <MapPin className="h-4 w-4 text-pink-400 shrink-0" />
-                                                          <span className={location.name ? "text-slate-200 group-hover:text-white" : "text-slate-500"}>
-                                                            {location.name || `(Unnamed location ${location.id})`}
-                                                          </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-4 shrink-0">
-                                                          <div className="flex items-center gap-1.5 text-sm">
-                                                            <Video className="h-3.5 w-3.5 text-blue-400" />
-                                                            <span className="text-slate-400">{location.videoCount}</span>
-                                                          </div>
-                                                          <span className="font-mono text-xs text-slate-600">
-                                                            {location.id}
-                                                          </span>
-                                                        </div>
-                                                      </Link>
-                                                    ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                          )
-                                        })}
-                                    </div>
-                                  )}
+                  <div className="border-t border-white/5 px-4 py-2 space-y-2">
+                    {isUSA
+                      ? Object.entries(countryNode.districts || {})
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([district, districtNode]) => {
+                            const dCount = countDistrict(districtNode)
+                            return (
+                              <details key={district} className="group/state rounded border border-white/5 bg-slate-800/30 overflow-hidden">
+                                <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-slate-700/30 transition-colors [&::-webkit-details-marker]:hidden">
+                                  <ChevronRight className="h-4 w-4 text-slate-400 transition-transform group-open/state:rotate-90" />
+                                  <span className="font-medium text-slate-200">{district}</span>
+                                  <span className="text-sm text-slate-500">
+                                    ({dCount} location{plural(dCount)})
+                                  </span>
+                                </summary>
+                                <div className="border-t border-white/5 px-4 py-2 space-y-2">
+                                  {Object.entries(districtNode.cities || {})
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([city, cityNode]) => (
+                                      <CityDetails key={city} city={city} cityNode={cityNode} />
+                                    ))}
                                 </div>
-                              )
-                            })
-                        ) : (
-                          /* Non-USA: Show City directly */
-                          Object.entries(countryNode.cities || {})
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([city, cityNode]) => {
-                              const cityKey = `${countryKey}-${city}`
-                              const isCityExpanded = expandedCities.has(cityKey)
-                              const cityLocationCount = cityNode.locations.length
-
-                              return (
-                                <div key={cityKey} className="rounded border border-white/5 bg-slate-800/30 overflow-hidden">
-                                  <button
-                                    onClick={() => toggleCity(cityKey)}
-                                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-700/30 transition-colors"
-                                  >
-                                    {isCityExpanded ? (
-                                      <ChevronDown className="h-4 w-4 text-slate-400" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4 text-slate-400" />
-                                    )}
-                                    <span className="font-medium text-slate-200">{city}</span>
-                                    <span className="text-sm text-slate-500">
-                                      ({cityLocationCount} location{cityLocationCount !== 1 ? "s" : ""})
-                                    </span>
-                                  </button>
-
-                                  {isCityExpanded && (
-                                    <div className="border-t border-white/5 divide-y divide-white/5">
-                                      {cityNode.locations
-                                        .sort((a, b) => b.videoCount - a.videoCount)
-                                        .map((location) => (
-                                          <Link
-                                            key={location.id}
-                                            href={`/location/${location.id}`}
-                                            className="flex items-center justify-between px-4 py-3 hover:bg-slate-600/20 transition-colors group"
-                                          >
-                                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                              <MapPin className="h-4 w-4 text-pink-400 shrink-0" />
-                                              <span className={location.name ? "text-slate-200 group-hover:text-white" : "text-slate-500"}>
-                                                {location.name || `(Unnamed location ${location.id})`}
-                                              </span>
-                                            </div>
-                                            <div className="flex items-center gap-4 shrink-0">
-                                              <div className="flex items-center gap-1.5 text-sm">
-                                                <Video className="h-3.5 w-3.5 text-blue-400" />
-                                                <span className="text-slate-400">{location.videoCount}</span>
-                                              </div>
-                                              <span className="font-mono text-xs text-slate-600">
-                                                {location.id}
-                                              </span>
-                                            </div>
-                                          </Link>
-                                        ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            })
-                        )}
-                      </div>
-                    )}
+                              </details>
+                            )
+                          })
+                      : Object.entries(countryNode.cities || {})
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([city, cityNode]) => (
+                            <CityDetails key={city} city={city} cityNode={cityNode} />
+                          ))}
                   </div>
-                )
-              })}
+                </details>
+              )
+            })}
           </div>
         )}
       </main>
