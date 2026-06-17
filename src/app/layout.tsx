@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
+import { siteUrl } from "@/lib/site"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -16,6 +17,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "VlogMap — Explorer Atlas",
   description:
     "Minimal Next.js + shadcn interface for mapping where YouTubers have filmed around the world.",
