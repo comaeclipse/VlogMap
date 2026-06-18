@@ -29,6 +29,8 @@ export const locationUpdateSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180),
   description: z.string().max(500).optional().nullable().or(z.literal("").transform(() => undefined)),
   city: z.string().max(120).optional().nullable().or(z.literal("").transform(() => undefined)),
+  district: z.string().max(120).optional().nullable().or(z.literal("").transform(() => undefined)),
+  country: z.string().max(120).optional().nullable().or(z.literal("").transform(() => undefined)),
   screenshotUrl: z.string().url().optional().nullable().or(z.literal("").transform(() => undefined)),
   locationId: z.string().max(36).optional().nullable(),
   locationName: z.string().max(200).optional().nullable().or(z.literal("").transform(() => undefined)),

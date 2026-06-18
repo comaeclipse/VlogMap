@@ -60,13 +60,24 @@ export async function findOrCreateCity(
   longitude?: number,
 ): Promise<string> {
   // Try to find existing city
-  const { rows: existingCities } = await query<{ id: string }>(
-    `SELECT id FROM locations WHERE type = 'city' AND city = $1 LIMIT 1`,
+  const { rows: existingCities } = await query<{ id: string; country: string | null; district: string | null }>(
+    `SELECT id, country, district FROM locations WHERE type = 'city' AND city = $1 LIMIT 1`,
     [city]
   )
 
   if (existingCities.length > 0) {
-    return existingCities[0].id
+    const existing = existingCities[0]
+    // Backfill missing country/district on a city node we created earlier without
+    // them, so it stops falling under "Unknown Country" once we learn the values.
+    if ((country && !existing.country) || (district && !existing.district)) {
+      await query(
+        `UPDATE locations
+         SET country = COALESCE(country, $2), district = COALESCE(district, $3), updated_at = NOW()
+         WHERE id = $1`,
+        [existing.id, country ?? null, district ?? null],
+      )
+    }
+    return existing.id
   }
 
   // Create new city with hash-based ID

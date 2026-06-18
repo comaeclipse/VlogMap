@@ -143,13 +143,15 @@ export async function POST(request: NextRequest) {
         // Update the marker (no type or parent_city_id)
         await query(
           `UPDATE explorer_markers
-           SET latitude = $1, longitude = $2, description = $3, city = $4, screenshot_url = $5, timestamp = $6
-           WHERE id = $7`,
+           SET latitude = $1, longitude = $2, description = $3, city = $4, district = $5, country = $6, screenshot_url = $7, timestamp = $8
+           WHERE id = $9`,
           [
             update.latitude,
             update.longitude,
             update.description ?? null,
             update.city ?? null,
+            update.district ?? checkRows[0].district ?? null,
+            update.country ?? checkRows[0].country ?? null,
             update.screenshotUrl ?? null,
             update.timestamp ?? null,
             update.id,
@@ -173,6 +175,8 @@ export async function POST(request: NextRequest) {
               update.latitude,
               update.longitude,
               update.city ?? null,
+              update.district ?? checkRows[0].district ?? null,
+              update.country ?? checkRows[0].country ?? null,
             )
           } catch (locationError) {
             console.error(

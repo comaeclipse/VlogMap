@@ -47,6 +47,8 @@ type LocationEdit = {
   longitude: number
   description: string
   city: string
+  district?: string
+  country?: string
   screenshotUrl: string
   locationId?: string | null
   locationName?: string | null
@@ -196,6 +198,8 @@ export default function EditVideoPage({
         longitude: m.longitude,
         description: m.description ?? "",
         city: m.city ?? "",
+        district: m.district ?? "",
+        country: m.country ?? "",
         screenshotUrl: m.screenshotUrl ?? "",
         locationId: m.locationId,
         locationName: m.locationName ?? null,
@@ -269,6 +273,8 @@ export default function EditVideoPage({
         longitude: 0,
         description: "",
         city: "",
+        district: "",
+        country: "",
         screenshotUrl: "",
         locationId: null,
         locationName: null,
@@ -368,6 +374,8 @@ export default function EditVideoPage({
       }
       if (payload.city || payload.district || payload.country) {
         updateNewLocation(locationId, "city", payload.city || "")
+        updateNewLocation(locationId, "district", payload.district || "")
+        updateNewLocation(locationId, "country", payload.country || "")
         const parts = [payload.city, payload.district, payload.country].filter(Boolean)
         toast.success(`Location: ${parts.join(", ")}`)
       } else {
@@ -429,6 +437,8 @@ export default function EditVideoPage({
             latitude: newLoc.latitude,
             longitude: newLoc.longitude,
             city: newLoc.city || undefined,
+            district: newLoc.district || undefined,
+            country: newLoc.country || undefined,
             description: newLoc.description || undefined,
             timestamp: newLoc.timestamp || undefined,
             screenshotUrl: newLoc.screenshotUrl || undefined,
