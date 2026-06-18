@@ -117,11 +117,6 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       </p>
                     )}
 
-                    {marker.parentLocationName && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        In: {marker.parentLocationName}
-                      </p>
-                    )}
                   </div>
 
                   {marker.screenshotUrl && (
