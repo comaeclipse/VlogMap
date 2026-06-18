@@ -22,6 +22,10 @@ const tileUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{
 const attribution =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
+// Web Mercator only renders tiles between roughly ±85.05° latitude, so clamp the
+// draggable area to the real world extent to avoid scrolling into empty grey space.
+const worldBounds = L.latLngBounds([-85.05, -180], [85.05, 180])
+
 function createPinIcon(creator: string) {
   const gradient = getCreatorGradient(creator)
   return L.divIcon({
@@ -132,7 +136,8 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
       center={[12, 0]}
       zoom={2}
       minZoom={2}
-      worldCopyJump
+      maxBounds={worldBounds}
+      maxBoundsViscosity={1.0}
       scrollWheelZoom
       preferCanvas
       zoomControl={false}
