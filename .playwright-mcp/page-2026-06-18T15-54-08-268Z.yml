@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - link "Vlog map Explorer" [ref=e6] [cursor=pointer]:
+            - /url: /
+            - img [ref=e8]
+            - generic [ref=e13]:
+              - paragraph [ref=e14]: Vlog map
+              - heading "Explorer" [level=1] [ref=e15]
+          - link "Creators" [ref=e16] [cursor=pointer]:
+            - /url: /creators
+            - button "Creators" [ref=e17]:
+              - img
+              - text: Creators
+          - link "Locations" [ref=e18] [cursor=pointer]:
+            - /url: /locations
+            - button "Locations" [ref=e19]:
+              - img
+              - text: Locations
+        - generic [ref=e20]:
+          - combobox [ref=e21]:
+            - img
+          - combobox [ref=e22]
+          - generic [ref=e23]:
+            - img [ref=e24]
+            - text: Loading...
+    - main [ref=e27]:
+      - paragraph [ref=e30]: Loading map...
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e36] [cursor=pointer]:
+    - img [ref=e37]

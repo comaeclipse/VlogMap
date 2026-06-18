@@ -157,12 +157,21 @@ export function CreatorsView({ creators }: { creators: CreatorStats[] }) {
                     <div className="relative space-y-5">
                       {/* Creator Avatar & Name */}
                       <div className="flex items-start gap-4">
-                        <div
-                          className="creator-gradient h-16 w-16 flex-shrink-0 rounded-full border-2 border-white/10"
-                          style={{
-                            background: gradient,
-                          }}
-                        />
+                        {creator.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={creator.avatarUrl}
+                            alt={`${creator.creator} channel logo`}
+                            className="creator-gradient h-16 w-16 flex-shrink-0 rounded-full border-2 border-white/10 object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="creator-gradient h-16 w-16 flex-shrink-0 rounded-full border-2 border-white/10"
+                            style={{
+                              background: gradient,
+                            }}
+                          />
+                        )}
                         <div className="min-w-0 flex-1 pt-1">
                           <Link
                             href={`/creator/${encodeURIComponent(creator.channelId ?? creator.creator)}`}
