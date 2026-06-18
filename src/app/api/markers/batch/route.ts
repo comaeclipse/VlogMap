@@ -95,7 +95,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      for (const update of payload.updates) {
+      for (let updateIndex = 0; updateIndex < payload.updates.length; updateIndex++) {
+        const update = payload.updates[updateIndex]
+        // Raw (pre-validation) update object, used to tell an omitted field apart
+        // from one explicitly cleared to "" — Zod collapses both to undefined.
+        const rawUpdate = (body?.updates?.[updateIndex] ?? {}) as Record<string, unknown>
+
         // Verify marker belongs to this video
         const { rows: checkRows } = await query<{ video_url: string; latitude: number; longitude: number; location_id: string | null; city: string | null; district: string | null; country: string | null }>(
           "SELECT video_url, latitude, longitude, location_id, city, district, country FROM explorer_markers WHERE id = $1",
@@ -140,22 +145,36 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Update the marker (no type or parent_city_id)
+        // Update the marker (no type or parent_city_id). Latitude/longitude are
+        // always present; every other column is only written when the caller
+        // actually sent that key — an omitted field is left untouched, while a
+        // field cleared to "" (key present) is nulled.
+        const setClauses = ["latitude = $1", "longitude = $2"]
+        const updateValues: (string | number | null)[] = [update.latitude, update.longitude]
+        let columnIndex = 3
+
+        const setIfPresent = (
+          rawKey: string,
+          column: string,
+          value: string | null | undefined,
+        ) => {
+          if (rawKey in rawUpdate) {
+            setClauses.push(`${column} = $${columnIndex++}`)
+            updateValues.push(value ?? null)
+          }
+        }
+
+        setIfPresent("description", "description", update.description)
+        setIfPresent("city", "city", update.city)
+        setIfPresent("district", "district", update.district)
+        setIfPresent("country", "country", update.country)
+        setIfPresent("screenshotUrl", "screenshot_url", update.screenshotUrl)
+        setIfPresent("timestamp", "timestamp", update.timestamp)
+
+        updateValues.push(update.id)
         await query(
-          `UPDATE explorer_markers
-           SET latitude = $1, longitude = $2, description = $3, city = $4, district = $5, country = $6, screenshot_url = $7, timestamp = $8
-           WHERE id = $9`,
-          [
-            update.latitude,
-            update.longitude,
-            update.description ?? null,
-            update.city ?? null,
-            update.district ?? checkRows[0].district ?? null,
-            update.country ?? checkRows[0].country ?? null,
-            update.screenshotUrl ?? null,
-            update.timestamp ?? null,
-            update.id,
-          ],
+          `UPDATE explorer_markers SET ${setClauses.join(", ")} WHERE id = $${columnIndex}`,
+          updateValues,
         )
 
         updatedMarkerIds.push(update.id)
