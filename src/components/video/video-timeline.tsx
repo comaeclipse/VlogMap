@@ -10,15 +10,13 @@ interface VideoTimelineProps {
 }
 
 export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
-  // Sort markers by timestamp
-  const sortedMarkers = [...markers].sort((a, b) => {
-    const timeA = timestampToSeconds(a.timestamp)
-    const timeB = timestampToSeconds(b.timestamp)
+  // Show every location on the timeline. Markers without a timestamp are
+  // treated as 00:00 (start of video) for both display and ordering.
+  const timelineMarkers = [...markers].sort((a, b) => {
+    const timeA = timestampToSeconds(a.timestamp ?? "00:00")
+    const timeB = timestampToSeconds(b.timestamp ?? "00:00")
     return timeA - timeB
   })
-
-  // Filter out markers without timestamps for the timeline
-  const timelineMarkers = sortedMarkers.filter((m) => m.timestamp)
 
   if (timelineMarkers.length === 0) {
     return null
@@ -31,12 +29,14 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
           <Clock className="h-5 w-5 text-blue-400" />
           <h2 className="text-2xl font-semibold text-white">Video Timeline</h2>
           <span className="text-sm text-slate-400">
-            {timelineMarkers.length} timestamped location{timelineMarkers.length !== 1 ? "s" : ""}
+            {timelineMarkers.length} location{timelineMarkers.length !== 1 ? "s" : ""}
           </span>
         </div>
 
         <div className="space-y-3">
-          {timelineMarkers.map((marker, index) => (
+          {timelineMarkers.map((marker, index) => {
+            const displayTimestamp = marker.timestamp ?? "00:00"
+            return (
             <div
               key={marker.id}
               className="group relative flex items-start gap-4 rounded-lg border border-white/10 bg-slate-900/60 p-4 transition-all hover:border-white/20 hover:bg-slate-900"
@@ -59,12 +59,12 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <a
-                        href={createTimestampLink(videoUrl, marker.timestamp!)}
+                        href={createTimestampLink(videoUrl, displayTimestamp)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-mono text-lg font-semibold text-blue-400 hover:text-blue-300 transition-colors"
                       >
-                        {marker.timestamp}
+                        {displayTimestamp}
                       </a>
                     </div>
                     
@@ -121,7 +121,7 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
 
                   {marker.screenshotUrl && (
                     <a
-                      href={createTimestampLink(videoUrl, marker.timestamp!)}
+                      href={createTimestampLink(videoUrl, displayTimestamp)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0"
@@ -136,7 +136,8 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>
