@@ -217,9 +217,11 @@ export default async function CreatorPage({
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {videos.map((video) => {
               const videoId = extractYouTubeId(video.videoUrl)
+              // Video cards always use the original YouTube thumbnail; an
+              // uploaded location screenshot is only a fallback for non-YouTube URLs.
               const thumbnailUrl =
-                video.locations[0]?.screenshotUrl ||
-                getYouTubeThumbnailUrl(video.videoUrl)
+                getYouTubeThumbnailUrl(video.videoUrl) ||
+                video.locations[0]?.screenshotUrl
               const formattedDate = video.videoPublishedAt
                 ? new Date(video.videoPublishedAt).toLocaleDateString("en-US", {
                     year: "numeric",
