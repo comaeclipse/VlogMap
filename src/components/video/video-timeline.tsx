@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { MapPin, Clock, Landmark } from "lucide-react"
 import type { Marker } from "@/types/markers"
-import { Badge } from "@/components/ui/badge"
 
 interface VideoTimelineProps {
   markers: Marker[]
@@ -67,16 +66,6 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                       >
                         {marker.timestamp}
                       </a>
-                      {marker.locationType === 'city' && (
-                        <Badge variant="secondary" className="text-xs">
-                          City
-                        </Badge>
-                      )}
-                      {marker.locationType === 'landmark' && (
-                        <Badge variant="default" className="text-xs">
-                          Landmark
-                        </Badge>
-                      )}
                     </div>
                     
                     {/* Landmark name line — only for landmark-tagged stops.
