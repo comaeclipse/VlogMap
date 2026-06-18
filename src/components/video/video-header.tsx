@@ -32,7 +32,7 @@ export function VideoHeader({ markers, videoId }: VideoHeaderProps) {
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
             <Link
-              href={`/creator/${encodeURIComponent(marker.creatorName)}`}
+              href={`/creator/${encodeURIComponent(marker.channelId ?? marker.creatorName)}`}
               className="flex items-center gap-2 transition-colors hover:text-slate-200"
             >
               <User className="h-4 w-4" />

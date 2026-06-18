@@ -4,6 +4,7 @@ export type Marker = {
   creatorId: number
   creatorName: string
   channelUrl?: string | null
+  channelId?: string | null
   videoUrl?: string | null
   description?: string | null
   latitude: number

@@ -76,11 +76,12 @@ export default async function VideoDetailPage({
   type MarkerWithLocation = MarkerRow & {
     location_name: string | null
     parent_city_name: string | null
+    creator_channel_id: string | null
   }
 
   const { rows } = await query<MarkerWithLocation>(
     `SELECT
-       m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description,
+       m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, c.channel_id as creator_channel_id, m.video_url, m.description,
        m.latitude, m.longitude, m.city,
        COALESCE(m.district, l.district) as district,
        COALESCE(m.country, l.country) as country,
@@ -115,6 +116,7 @@ export default async function VideoDetailPage({
     ...mapMarkerRow(row),
     locationName: row.location_name,
     parentCityName: row.parent_city_name,
+    channelId: row.creator_channel_id,
   }))
   const canonicalVideoUrl = markers[0]?.videoUrl || videoUrl
 
