@@ -469,6 +469,16 @@ export default function EditVideoPage({
                     id: created.id,
                     latitude: created.latitude,
                     longitude: created.longitude,
+                    // Carry the full location data through the type switch — the
+                    // batch route runs an unconditional UPDATE, so any field we
+                    // omit here gets overwritten with null (wiping city/timestamp).
+                    city: newLoc.city || undefined,
+                    district: newLoc.district || undefined,
+                    country: newLoc.country || undefined,
+                    description: newLoc.description || undefined,
+                    timestamp: newLoc.timestamp || undefined,
+                    screenshotUrl: newLoc.screenshotUrl || undefined,
+                    locationName: newLoc.locationName || undefined,
                     requestedLocationType: "city",
                   },
                 ],
