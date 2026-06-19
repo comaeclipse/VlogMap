@@ -1,11 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet"
 import L from "leaflet"
 import Link from "next/link"
-import Lightbox from "yet-another-react-lightbox"
-import "yet-another-react-lightbox/styles.css"
 
 import type { Marker as MarkerType } from "@/types/markers"
 import { getYouTubeThumbnailUrl } from "@/lib/youtube"
@@ -112,9 +110,6 @@ function AutoFitBounds({ markers }: { markers: MarkerType[] }) {
 }
 
 export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
-  const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [lightboxImage, setLightboxImage] = useState<string>("")
-
   const markerIcons = useMemo(() => {
     const icons = new Map<string, L.DivIcon>()
     markers.forEach((marker) => {
@@ -124,11 +119,6 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
     })
     return icons
   }, [markers])
-
-  const handleImageClick = (imageUrl: string) => {
-    setLightboxImage(imageUrl)
-    setLightboxOpen(true)
-  }
 
   return (
     <MapContainer
@@ -189,63 +179,41 @@ export function MapCanvas({ markers, onSelect, focusMarker, autoFit }: Props) {
               ) : null}
               {(() => {
                 const thumbnailUrl = marker.screenshotUrl || (marker.videoUrl ? getYouTubeThumbnailUrl(marker.videoUrl) : null)
-                return thumbnailUrl ? (
+                if (!thumbnailUrl) return null
+                const videoId = marker.videoUrl ? extractYouTubeVideoId(marker.videoUrl) : null
+                const thumbnail = (
+                  <img
+                    src={thumbnailUrl}
+                    alt={marker.title}
+                    className="max-w-[280px] rounded-md border border-slate-200 transition-opacity hover:opacity-80"
+                    onError={(e) => {
+                      // Fallback to hqdefault if maxresdefault fails
+                      const target = e.target as HTMLImageElement
+                      if (target.src.includes('maxresdefault')) {
+                        target.src = target.src.replace('maxresdefault', 'hqdefault')
+                      }
+                    }}
+                  />
+                )
+                return (
                   <div className="py-2">
-                    <img
-                      src={thumbnailUrl}
-                      alt={marker.title}
-                      className="max-w-[280px] cursor-pointer rounded-md border border-slate-200 transition-opacity hover:opacity-80"
-                      onClick={() => handleImageClick(thumbnailUrl)}
-                      onError={(e) => {
-                        // Fallback to hqdefault if maxresdefault fails
-                        const target = e.target as HTMLImageElement
-                        if (target.src.includes('maxresdefault')) {
-                          target.src = target.src.replace('maxresdefault', 'hqdefault')
-                        }
-                      }}
-                    />
+                    {videoId ? (
+                      <Link href={`/video/${videoId}`} className="block cursor-pointer">
+                        {thumbnail}
+                      </Link>
+                    ) : (
+                      thumbnail
+                    )}
                   </div>
-                ) : null
+                )
               })()}
               {marker.description ? (
                 <p className="text-slate-600">{marker.description}</p>
               ) : null}
-              <div className="flex flex-wrap gap-2 pt-1 text-xs">
-                {marker.channelUrl ? (
-                  <a
-                    className="font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
-                    href={marker.channelUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Channel
-                  </a>
-                ) : null}
-                {marker.videoUrl ? (
-                  <a
-                    className="font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
-                    href={marker.videoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Video
-                  </a>
-                ) : null}
-              </div>
             </div>
           </Popup>
         </Marker>
       ))}
-
-      <Lightbox
-        open={lightboxOpen}
-        close={() => setLightboxOpen(false)}
-        slides={[{ src: lightboxImage }]}
-        render={{
-          buttonPrev: () => null,
-          buttonNext: () => null,
-        }}
-      />
     </MapContainer>
   )
 }
