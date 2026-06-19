@@ -343,24 +343,21 @@ export default function EditVideoPage({
     }
   }
 
-  const fetchCityForNew = async (locationId: number) => {
-    const location = newLocations.find((l) => l.id === locationId)
-    if (!location || isNaN(location.latitude) || isNaN(location.longitude)) {
-      toast.error("Enter coordinates first")
-      return
-    }
-    if (location.latitude === 0 && location.longitude === 0) {
-      toast.error("Enter coordinates first")
-      return
-    }
-
-    setGeoLoadingFor(locationId)
+  // Reverse-geocode a coordinate pair and apply the resulting city/district/
+  // country via the provided updater. `loaderId` drives the spinner state.
+  const reverseGeocode = async (
+    latitude: number,
+    longitude: number,
+    apply: (field: keyof LocationEdit, value: string) => void,
+    loaderId: number,
+  ) => {
+    setGeoLoadingFor(loaderId)
     try {
       const res = await fetch("/api/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ latitude: location.latitude, longitude: location.longitude }),
+        body: JSON.stringify({ latitude, longitude }),
       })
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}))
@@ -373,9 +370,9 @@ export default function EditVideoPage({
         country?: string | null
       }
       if (payload.city || payload.district || payload.country) {
-        updateNewLocation(locationId, "city", payload.city || "")
-        updateNewLocation(locationId, "district", payload.district || "")
-        updateNewLocation(locationId, "country", payload.country || "")
+        apply("city", payload.city || "")
+        apply("district", payload.district || "")
+        apply("country", payload.country || "")
         const parts = [payload.city, payload.district, payload.country].filter(Boolean)
         toast.success(`Location: ${parts.join(", ")}`)
       } else {
@@ -384,6 +381,43 @@ export default function EditVideoPage({
     } finally {
       setGeoLoadingFor(null)
     }
+  }
+
+  const fetchCityForNew = async (locationId: number) => {
+    const location = newLocations.find((l) => l.id === locationId)
+    if (!location || isNaN(location.latitude) || isNaN(location.longitude)) {
+      toast.error("Enter coordinates first")
+      return
+    }
+    if (location.latitude === 0 && location.longitude === 0) {
+      toast.error("Enter coordinates first")
+      return
+    }
+
+    await reverseGeocode(
+      location.latitude,
+      location.longitude,
+      (field, value) => updateNewLocation(locationId, field, value),
+      locationId,
+    )
+  }
+
+  // Parse a pasted "lat, lng" string for an existing location, fill the
+  // coordinate fields, then auto-pull the location data from the geocode API.
+  // User saves manually afterwards.
+  const handlePasteCoordsForExisting = (locationId: number, value: string) => {
+    const match = value.match(/(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)/)
+    if (!match) return
+    const lat = parseFloat(match[1])
+    const lng = parseFloat(match[2])
+    updateLocation(locationId, "latitude", lat)
+    updateLocation(locationId, "longitude", lng)
+    void reverseGeocode(
+      lat,
+      lng,
+      (field, val) => updateLocation(locationId, field, val),
+      locationId,
+    )
   }
 
   // Get city markers for parent dropdown
@@ -667,6 +701,26 @@ export default function EditVideoPage({
               </div>
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Paste Coordinates - auto-fills lat/lng and looks up the
+                      location from the geocode API. Save is still manual. */}
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`coords-${location.id}`}>
+                      Paste Coordinates
+                      {geoLoadingFor === location.id && (
+                        <Loader2 className="ml-2 inline h-3.5 w-3.5 animate-spin text-slate-400" />
+                      )}
+                    </Label>
+                    <Input
+                      id={`coords-${location.id}`}
+                      placeholder="16.9305, 96.1559"
+                      onChange={(e) =>
+                        handlePasteCoordsForExisting(location.id, e.target.value)
+                      }
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      Paste &quot;lat, lng&quot; to update coordinates and auto-pull the location
+                    </p>
+                  </div>
                   <div>
                     <Label htmlFor={`lat-${location.id}`}>Latitude</Label>
                     <Input
