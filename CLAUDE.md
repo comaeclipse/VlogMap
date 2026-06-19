@@ -110,12 +110,19 @@ npm run lint     # Run ESLint (Next.js + TypeScript rules)
 
 ### Database Layer
 
-The app uses a singleton PostgreSQL connection pool (`src/lib/db.ts`) with automatic schema initialization:
-- Table `explorer_markers` is created on first query
-- Schema migrations happen via `ALTER TABLE IF NOT EXISTS` on startup
+The app uses a singleton PostgreSQL connection pool (`src/lib/db.ts`). Schema is
+**not** auto-created by the app — it is managed by migration files (see "Database
+Schema Changes" below) and applied with `npm run db:migrate`.
 - Row-to-object mapping via `mapMarkerRow()` converts snake_case to camelCase
 
-**Schema columns**: `id`, `title`, `creator`, `channel_url`, `video_url`, `description`, `latitude`, `longitude`, `city`, `video_published_at`, `created_at`
+**Tables**: `creators`, `locations` (self-referencing city→landmark tree), and
+`explorer_markers` (check-ins).
+
+**`explorer_markers` columns**: `id`, `title`, `creator_id` (FK → `creators`),
+`video_url`, `description`, `latitude`, `longitude`, `created_at`,
+`video_published_at`, `city`, `screenshot_url`, `summary`, `location_id` (FK →
+`locations`), `district`, `country`, `timestamp`. (`type` and `parent_city_id`
+exist but are deprecated, unused legacy columns.)
 
 ### Authentication
 
@@ -164,8 +171,16 @@ ADMIN_SECRET=your-strong-password
 
 ## Database Schema Changes
 
+The database schema is owned entirely by numbered SQL files in the project-root
+`migrations/` directory and applied with `npm run db:migrate` (runner:
+`src/scripts/migrate.ts`, tracking table: `schema_migrations`). `src/lib/db.ts`
+does **not** create or alter schema — never reintroduce `CREATE TABLE` / `ALTER
+TABLE` there. `migrations/0001_baseline.sql` is the canonical baseline captured
+from production; it is idempotent and safe to run against the live database.
+
 When modifying the `explorer_markers` table:
-1. Add `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `src/lib/db.ts` → `ensureSchema()`
+1. Add a new migration file, e.g. `migrations/0002_add_tags.sql`, with the
+   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...`, and run `npm run db:migrate`
 2. Update `MarkerRow` type in `db.ts`
 3. Update `markerSchema` in `src/lib/markers.ts`
 4. Update `mapMarkerRow()` mapping function
@@ -189,8 +204,8 @@ Map tiles default to OpenStreetMap via `https://{s}.tile.openstreetmap.org/{z}/{
 
 Follow the "Database Schema Changes" process above. Example for adding a `tags` field:
 ```typescript
-// 1. db.ts ensureSchema()
-await getPool().query(`ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS tags TEXT[]`)
+// 1. New migration file: migrations/0002_add_tags.sql (then `npm run db:migrate`)
+//    ALTER TABLE explorer_markers ADD COLUMN IF NOT EXISTS tags TEXT[];
 
 // 2. db.ts MarkerRow type
 tags: string[] | null

@@ -34,7 +34,22 @@
       "Bash(git rev-list *)",
       "PowerShell(Start-Process chrome.exe \"https://github.com/comaeclipse/VlogMap/\")",
       "PowerShell(npm install *)",
-      "PowerShell(if \\(Test-Path .next\\) { Remove-Item -Recurse -Force .next }; npx tsc --noEmit 2>&1 | Select-Object -Last 30; Write-Output \"EXIT=$LASTEXITCODE\")"
+      "PowerShell(if \\(Test-Path .next\\) { Remove-Item -Recurse -Force .next }; npx tsc --noEmit 2>&1 | Select-Object -Last 30; Write-Output \"EXIT=$LASTEXITCODE\")",
+      "mcp__plugin_neon_neon__get_database_tables",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1)",
+      "mcp__plugin_neon_neon__run_sql",
+      "Bash(git mv *)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_type",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "mcp__plugin_playwright_playwright__browser_network_requests",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git reset *)"
     ]
   }
 }
