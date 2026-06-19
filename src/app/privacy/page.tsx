@@ -45,51 +45,77 @@ export default function PrivacyPage() {
 
       <main className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <h1 className="text-4xl font-bold">Privacy Policy</h1>
+        <p className="mt-2 text-sm text-slate-400">Effective Date: June 18, 2026</p>
 
         <div className="mt-6 space-y-6 text-slate-300 leading-relaxed">
           <p>
-            VlogMap is built to be as privacy-respecting as possible. We do not
-            require registration, we do not ask for any personal information, and
-            we do not run advertising or third-party tracking.
+            VlogMap is a website for exploring map-based video locations,
+            timelines, and related public information.
           </p>
 
-          <section className="space-y-2">
-            <h2 className="text-xl font-semibold text-white">What we don&apos;t collect</h2>
-            <ul className="list-disc space-y-1 pl-6">
-              <li>No accounts or registration — there is nothing to sign up for.</li>
-              <li>No cookies are set for tracking or advertising.</li>
-              <li>No personal information is requested, stored, or sold.</li>
-              <li>No server-side logging of your activity.</li>
-            </ul>
-          </section>
+          <p>
+            We do not ask visitors to create an account, submit personal
+            information, or provide precise location data.
+          </p>
 
-          <section className="space-y-2">
-            <h2 className="text-xl font-semibold text-white">Analytics</h2>
-            <p>
-              We use Vercel Analytics to understand general, aggregate site usage
-              such as how many people visit and which pages are popular. This is
-              privacy-friendly analytics that does not use cookies and is not used
-              to identify individual visitors. For details on exactly what Vercel
-              collects and retains, please see{" "}
-              <a
-                href="https://vercel.com/docs/analytics/privacy-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 underline underline-offset-4 hover:text-blue-300"
-              >
-                Vercel&apos;s Analytics privacy documentation
-              </a>
-              .
-            </p>
-          </section>
+          <p>
+            Like most websites, VlogMap and the services used to operate it may
+            process basic technical information automatically. This may include
+            information such as your IP address, browser type, device type, pages
+            visited, referring page, approximate location, timestamps, and
+            performance data. We use this information to operate the site, keep it
+            secure, understand general traffic, and improve the experience.
+          </p>
 
-          <section className="space-y-2">
-            <h2 className="text-xl font-semibold text-white">Changes to this policy</h2>
-            <p>
-              If this policy ever changes, the updated version will be posted on
-              this page.
-            </p>
-          </section>
+          <p>
+            VlogMap uses Vercel Analytics to measure general site usage. We use
+            this information in an aggregated way and do not use it to personally
+            identify visitors.
+          </p>
+
+          <p>
+            VlogMap uses Leaflet and react-leaflet to display interactive maps.
+            Map tiles are loaded from CARTO&rsquo;s Voyager raster basemap
+            service, which uses OpenStreetMap data. When your browser loads the
+            map, CARTO may receive basic technical information related to those
+            map tile requests, such as your IP address, browser details, and the
+            map tiles requested.
+          </p>
+
+          <p>
+            VlogMap does not currently use its own cookies for accounts,
+            advertising, or personalization.
+          </p>
+
+          <p>
+            VlogMap may link to third-party websites, videos, maps, or other
+            external content. Those third-party services have their own privacy
+            practices, and we are not responsible for how they collect or use
+            information.
+          </p>
+
+          <p>
+            VlogMap does not currently display advertising. If advertising is
+            added in the future, this Privacy Policy will be updated to explain
+            what advertising services are used and whether cookies, tracking
+            technologies, or personalized ads are involved.
+          </p>
+
+          <p>
+            We may update this Privacy Policy from time to time as the website
+            changes. The updated version will be posted on this page with a new
+            effective date.
+          </p>
+
+          <p>
+            If you have questions about this Privacy Policy, contact us at:{" "}
+            <a
+              href="mailto:vlogmap@gmail.com"
+              className="text-blue-400 underline underline-offset-4 hover:text-blue-300"
+            >
+              vlogmap@gmail.com
+            </a>
+          </p>
         </div>
       </main>
 
