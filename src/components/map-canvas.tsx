@@ -92,8 +92,9 @@ function AutoFitBounds({ markers }: { markers: MarkerType[] }) {
     if (markers.length === 0) return
 
     if (markers.length === 1) {
-      // Single marker - center on it with a good zoom level
-      map.setView([markers[0].latitude, markers[0].longitude], 13)
+      // Single marker - zoom out to a regional/country level so the pin has a
+      // geographic frame of reference instead of an anonymous street view.
+      map.setView([markers[0].latitude, markers[0].longitude], 6)
     } else {
       // Multiple markers - fit bounds
       const bounds = L.latLngBounds(
