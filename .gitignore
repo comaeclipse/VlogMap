@@ -39,6 +39,15 @@ yarn-error.log*
 # playwright mcp artifacts
 .playwright-mcp/
 
+# agent / tooling config and docs (kept local, not tracked)
+.claude/
+.serena/
+AGENTS.md
+CLAUDE.md
+
+# database migrations (kept local, not tracked)
+/migrations/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
