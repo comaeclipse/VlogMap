@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Globe2, MapPin, Video, ChevronRight, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { SiteFooter } from "@/components/site-footer"
 import { getLocationsWithStats, type LocationWithStats } from "@/lib/locations-data"
 
 export const revalidate = 60
@@ -225,6 +226,8 @@ export default async function LocationsPage() {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

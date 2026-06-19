@@ -19,6 +19,7 @@ import {
 import { groupMarkersByVideo } from "@/lib/group-markers"
 import { extractYouTubeId, getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { VideoCard } from "@/components/admin/video-card"
+import { SiteFooter } from "@/components/site-footer"
 import type { Marker } from "@/types/markers"
 
 const fetcher = (url: string) =>
@@ -488,6 +489,8 @@ export default function AdminPage() {
           )}
         </section>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

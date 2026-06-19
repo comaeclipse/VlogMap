@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Globe2, MapPin, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { SiteFooter } from "@/components/site-footer"
 
 export const metadata: Metadata = {
   title: "Privacy Policy | VlogMap",
@@ -91,6 +92,8 @@ export default function PrivacyPage() {
           </section>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

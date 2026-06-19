@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Globe2, MapPin, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { SiteFooter } from "@/components/site-footer"
 
 export const metadata: Metadata = {
   title: "About | VlogMap",
@@ -65,6 +66,8 @@ export default function AboutPage() {
           </p>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { groupMarkersByVideo } from "@/lib/group-markers"
 import { extractYouTubeId, getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { Button } from "@/components/ui/button"
 import { VideoThumbnail } from "@/components/video-thumbnail"
+import { SiteFooter } from "@/components/site-footer"
 
 export async function generateMetadata({
   params,
@@ -388,6 +389,8 @@ export default async function LocationDetailPage({
           })}
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

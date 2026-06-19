@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Globe2, MapPin, Video, Compass, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { SiteFooter } from "@/components/site-footer"
 import type { CreatorStats } from "@/types/creators"
 import { getCreatorGradient } from "@/lib/gradients"
 
@@ -242,6 +243,8 @@ export function CreatorsView({ creators }: { creators: CreatorStats[] }) {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

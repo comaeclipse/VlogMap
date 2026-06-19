@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { RichTextEditor } from "@/components/rich-text-editor"
+import { SiteFooter } from "@/components/site-footer"
 import { extractYouTubeId } from "@/lib/youtube"
 import type { Marker } from "@/types/markers"
 
@@ -1139,6 +1140,8 @@ export default function EditVideoPage({
           </Button>
         </div>
       </main>
+
+      <SiteFooter />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

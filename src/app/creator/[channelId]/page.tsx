@@ -10,6 +10,7 @@ import { extractYouTubeId, getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { getCreatorGradient } from "@/lib/gradients"
 import { Button } from "@/components/ui/button"
 import { VideoThumbnail } from "@/components/video-thumbnail"
+import { SiteFooter } from "@/components/site-footer"
 import styles from "./page.module.css"
 
 type CreatorRow = {
@@ -272,6 +273,8 @@ export default async function CreatorPage({
           </div>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }
