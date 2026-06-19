@@ -1,7 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { MapPin, Clock, Landmark } from "lucide-react"
+import Lightbox from "yet-another-react-lightbox"
+import "yet-another-react-lightbox/styles.css"
 import type { Marker } from "@/types/markers"
 
 interface VideoTimelineProps {
@@ -10,6 +13,9 @@ interface VideoTimelineProps {
 }
 
 export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+
   // Show every location on the timeline. Markers without a timestamp are
   // treated as 00:00 (start of video) for both display and ordering.
   const timelineMarkers = [...markers].sort((a, b) => {
@@ -21,6 +27,11 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
   if (timelineMarkers.length === 0) {
     return null
   }
+
+  // Build the lightbox gallery from timeline screenshots (in timeline order).
+  // Each thumbnail opens the lightbox at its own slide.
+  const screenshotMarkers = timelineMarkers.filter((m) => m.screenshotUrl)
+  const slides = screenshotMarkers.map((m) => ({ src: m.screenshotUrl as string }))
 
   return (
     <div className="border-t border-white/10 bg-slate-950/50">
@@ -120,10 +131,13 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                   </div>
 
                   {marker.screenshotUrl && (
-                    <a
-                      href={createTimestampLink(videoUrl, displayTimestamp)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const slideIndex = screenshotMarkers.findIndex((m) => m.id === marker.id)
+                        setLightboxIndex(slideIndex < 0 ? 0 : slideIndex)
+                        setLightboxOpen(true)
+                      }}
                       className="shrink-0"
                     >
                       <img
@@ -131,7 +145,7 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                         alt={marker.locationName || "Location"}
                         className="h-20 w-32 rounded-md object-cover border border-white/10 transition-all group-hover:ring-2 group-hover:ring-blue-500/50"
                       />
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
@@ -140,6 +154,13 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
           })}
         </div>
       </div>
+
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        index={lightboxIndex}
+        slides={slides}
+      />
     </div>
   )
 }

@@ -23,7 +23,20 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
   }> = []
   
   const seenUrls = new Set<string>()
-  
+
+  // Always show the YouTube thumbnail first, even when screenshots exist
+  if (markers.length > 0 && markers[0].videoUrl) {
+    const thumbnailUrl = getYouTubeThumbnailUrl(markers[0].videoUrl)
+    if (thumbnailUrl && !seenUrls.has(thumbnailUrl)) {
+      seenUrls.add(thumbnailUrl)
+      images.push({
+        src: thumbnailUrl,
+        alt: markers[0].title,
+        description: null,
+      })
+    }
+  }
+
   // Add screenshots from markers
   markers.forEach((marker, index) => {
     if (marker.screenshotUrl && !seenUrls.has(marker.screenshotUrl)) {
@@ -35,18 +48,6 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
       })
     }
   })
-  
-  // Add YouTube thumbnail once if no screenshots exist
-  if (images.length === 0 && markers.length > 0 && markers[0].videoUrl) {
-    const thumbnailUrl = getYouTubeThumbnailUrl(markers[0].videoUrl)
-    if (thumbnailUrl) {
-      images.push({
-        src: thumbnailUrl,
-        alt: markers[0].title,
-        description: null,
-      })
-    }
-  }
 
   if (images.length === 0) return null
 
