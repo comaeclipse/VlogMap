@@ -5,7 +5,7 @@ import { ArrowLeft, Globe2, MapPin, Users } from "lucide-react"
 
 import { query, mapMarkerRow } from "@/lib/db"
 import type { MarkerRow } from "@/lib/db"
-import { getYouTubeThumbnailUrl } from "@/lib/youtube"
+import { getBestYouTubeThumbnailUrl } from "@/lib/youtube"
 import { findNearbyVideos } from "@/lib/nearby-videos"
 import { groupMarkersByVideo } from "@/lib/group-markers"
 import { VideoHeader } from "@/components/video/video-header"
@@ -55,7 +55,9 @@ export async function generateMetadata({
         title: marker.title,
         description: `by ${marker.creatorName}`,
         images: [
-          marker.screenshotUrl || getYouTubeThumbnailUrl(canonicalVideoUrl) || "",
+          marker.screenshotUrl ||
+            (await getBestYouTubeThumbnailUrl(canonicalVideoUrl)) ||
+            "",
         ].filter(Boolean),
       },
     }
