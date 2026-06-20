@@ -26,6 +26,7 @@ import { getDistanceKm } from "@/lib/distance"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
@@ -51,6 +52,7 @@ import type { Marker } from "@/types/markers"
 type Location = {
   id: string
   name: string | null
+  description: string | null
   type: string | null
   latitude: number
   longitude: number
@@ -141,6 +143,7 @@ export default function TaxonomyManagerPage() {
     parentCityId: "none",
     country: "",
     district: "",
+    description: "",
   })
 
   // Merge flow: candidate location ids under review, and which one is kept (target)
@@ -371,6 +374,7 @@ export default function TaxonomyManagerPage() {
       parentCityId: location.parentLocationId ?? "none",
       country: location.country ?? "",
       district: location.district ?? "",
+      description: location.description ?? "",
     })
     setIsEditLocationOpen(true)
   }
@@ -391,6 +395,7 @@ export default function TaxonomyManagerPage() {
           : editLocationData.parentCityId,
       country: editLocationData.country || null,
       district: editLocationData.district || null,
+      description: editLocationData.description || null,
     }
 
     setUpdatingLocationId(editingLocationId)
@@ -1385,6 +1390,16 @@ export default function TaxonomyManagerPage() {
                 id="edit-location-name"
                 value={editLocationData.name}
                 onChange={(e) => setEditLocationData(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-location-description">Location description</Label>
+              <Textarea
+                id="edit-location-description"
+                rows={5}
+                placeholder="A description of this place, shown on its public location page."
+                value={editLocationData.description}
+                onChange={(e) => setEditLocationData(prev => ({ ...prev, description: e.target.value }))}
               />
             </div>
             <div className="grid gap-2">

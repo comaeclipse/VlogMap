@@ -17,12 +17,13 @@ export async function GET(
       district: string | null
       country: string | null
       name: string | null
+      description: string | null
       created_at: string
       updated_at: string
       marker_count: string
       video_count: string
     }>(
-      `SELECT 
+      `SELECT
          l.id,
          l.latitude,
          l.longitude,
@@ -30,6 +31,7 @@ export async function GET(
          l.district,
          l.country,
          l.name,
+         l.description,
          l.created_at,
          l.updated_at,
          COUNT(DISTINCT m.id) as marker_count,
@@ -37,7 +39,7 @@ export async function GET(
        FROM locations l
        LEFT JOIN explorer_markers m ON l.id = m.location_id
        WHERE l.id = $1
-       GROUP BY l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.created_at, l.updated_at`,
+       GROUP BY l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.description, l.created_at, l.updated_at`,
       [locationId],
     )
 
@@ -56,6 +58,7 @@ export async function GET(
       district: rows[0].district,
       country: rows[0].country,
       name: rows[0].name,
+      description: rows[0].description,
       createdAt: rows[0].created_at,
       updatedAt: rows[0].updated_at,
       markerCount: parseInt(rows[0].marker_count, 10),
@@ -83,7 +86,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { name, type, parentLocationId, latitude, longitude, city, district, country } = body
+    const { name, type, parentLocationId, latitude, longitude, city, district, country, description } = body
 
     // Build dynamic update
     const updates: string[] = []
@@ -162,6 +165,17 @@ export async function PATCH(
       values.push(country || null)
     }
 
+    if (description !== undefined) {
+      if (description !== null && typeof description !== "string") {
+        return NextResponse.json(
+          { error: "Description must be a string" },
+          { status: 400 },
+        )
+      }
+      updates.push(`description = $${paramIndex++}`)
+      values.push(description || null)
+    }
+
     if (updates.length === 0) {
       return NextResponse.json(
         { error: "No fields to update" },
@@ -182,11 +196,12 @@ export async function PATCH(
       city: string | null
       district: string | null
       country: string | null
+      description: string | null
     }>(
-      `UPDATE locations 
+      `UPDATE locations
        SET ${updates.join(", ")}
        WHERE id = $${paramIndex}
-       RETURNING id, name, type, parent_location_id, latitude, longitude, city, district, country`,
+       RETURNING id, name, type, parent_location_id, latitude, longitude, city, district, country, description`,
       values,
     )
 
@@ -207,6 +222,7 @@ export async function PATCH(
       city: rows[0].city,
       district: rows[0].district,
       country: rows[0].country,
+      description: rows[0].description,
     })
   } catch (error) {
     console.error("Failed to update location", error)

@@ -19,8 +19,8 @@ export async function generateMetadata({
   const { locationId } = await params
 
   try {
-    const { rows } = await query<{ city: string | null; name: string | null }>(
-      "SELECT city, name FROM locations WHERE id = $1",
+    const { rows } = await query<{ city: string | null; name: string | null; description: string | null }>(
+      "SELECT city, name, description FROM locations WHERE id = $1",
       [locationId],
     )
 
@@ -33,7 +33,7 @@ export async function generateMetadata({
 
     return {
       title: `${title} | VlogMap`,
-      description: `Videos filmed at ${title}`,
+      description: location.description || `Videos filmed at ${title}`,
     }
   } catch (error) {
     console.error("Failed to generate metadata", error)
@@ -57,12 +57,13 @@ export default async function LocationDetailPage({
     district: string | null
     country: string | null
     name: string | null
+    description: string | null
     type: string | null
     parent_location_id: string | null
     parent_city_name: string | null
     created_at: string
   }>(
-    `SELECT l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.type, 
+    `SELECT l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.description, l.type,
             l.parent_location_id, pc.name as parent_city_name, l.created_at
      FROM locations l
      LEFT JOIN locations pc ON l.parent_location_id = pc.id
@@ -215,6 +216,11 @@ export default async function LocationDetailPage({
           <p className="mt-1 text-sm text-slate-500">
             {data.latitude.toFixed(6)}, {data.longitude.toFixed(6)}
           </p>
+          {data.description && (
+            <p className="mt-4 max-w-3xl whitespace-pre-line text-base text-slate-300">
+              {data.description}
+            </p>
+          )}
         </div>
 
         {/* Stats row - Foursquare style */}

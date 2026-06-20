@@ -24,6 +24,7 @@ type LocationWithStats = {
   district: string | null
   country: string | null
   name: string | null
+  description: string | null
   type: string | null
   parentLocationId: string | null
   parentLocationName: string | null
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
       district: string | null
       country: string | null
       name: string | null
+      description: string | null
       type: string | null
       parent_location_id: string | null
       parent_location_name: string | null
@@ -80,6 +82,7 @@ export async function GET(request: NextRequest) {
          l.district,
          l.country,
          l.name,
+         l.description,
          l.type,
          l.parent_location_id,
          pl.name as parent_location_name,
@@ -91,7 +94,7 @@ export async function GET(request: NextRequest) {
        LEFT JOIN explorer_markers m ON l.id = m.location_id
        LEFT JOIN locations pl ON l.parent_location_id = pl.id
        ${whereClause}
-       GROUP BY l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.type, l.parent_location_id, pl.name, l.created_at
+       GROUP BY l.id, l.latitude, l.longitude, l.city, l.district, l.country, l.name, l.description, l.type, l.parent_location_id, pl.name, l.created_at
        ORDER BY l.type DESC, l.country, l.city, l.name`,
       params.length > 0 ? params : undefined,
     )
@@ -104,6 +107,7 @@ export async function GET(request: NextRequest) {
       district: row.district,
       country: row.country,
       name: row.name,
+      description: row.description,
       type: row.type,
       parentLocationId: row.parent_location_id,
       parentLocationName: row.parent_location_name,
