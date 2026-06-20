@@ -10,6 +10,7 @@ import { extractYouTubeId, getYouTubeThumbnailUrl } from "@/lib/youtube"
 import { Button } from "@/components/ui/button"
 import { VideoThumbnail } from "@/components/video-thumbnail"
 import { SiteFooter } from "@/components/site-footer"
+import { JsonLd } from "@/components/json-ld"
 
 export async function generateMetadata({
   params,
@@ -151,8 +152,34 @@ export default async function LocationDetailPage({
     locationType: location.type,
   }
 
+  // Structured data so Google understands this is a place (and can use the
+  // description for the result), not just a page of coordinates.
+  const placeName = data.name || data.city || "Unnamed Location"
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": data.locationType === "landmark" ? "TouristAttraction" : "Place",
+    name: placeName,
+    ...(data.description ? { description: data.description } : {}),
+    url: `https://vlogmap.world/location/${data.id}`,
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: data.latitude,
+      longitude: data.longitude,
+    },
+    ...(data.city || data.country
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            ...(data.city ? { addressLocality: data.city } : {}),
+            ...(data.country ? { addressCountry: data.country } : {}),
+          },
+        }
+      : {}),
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
+      <JsonLd data={jsonLd} />
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-900/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex items-center gap-6">
@@ -199,7 +226,13 @@ export default async function LocationDetailPage({
         )}
 
         <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+          {/* data-nosnippet keeps these out of Google's auto-generated search
+              snippet (they still render) so the description below is what
+              Google surfaces instead of the badge/city/coordinates noise. */}
+          <div
+            data-nosnippet
+            className="flex items-center gap-2 text-sm text-slate-400 mb-2"
+          >
             <MapPin className="h-4 w-4" />
             <span className="px-2 py-0.5 rounded bg-slate-800 text-xs">
               {data.locationType === 'city' ? 'City' : 'Landmark'}
@@ -210,11 +243,15 @@ export default async function LocationDetailPage({
           </h1>
           {(data.city || data.country) && (
             <p className="mt-2 text-lg text-slate-300">
-              {[data.city, data.country].filter(Boolean).join(", ")}
+              <span data-nosnippet>
+                {[data.city, data.country].filter(Boolean).join(", ")}
+              </span>
             </p>
           )}
           <p className="mt-1 text-sm text-slate-500">
-            {data.latitude.toFixed(6)}, {data.longitude.toFixed(6)}
+            <span data-nosnippet>
+              {data.latitude.toFixed(6)}, {data.longitude.toFixed(6)}
+            </span>
           </p>
           {data.description && (
             <p className="mt-4 max-w-3xl whitespace-pre-line text-base text-slate-300">

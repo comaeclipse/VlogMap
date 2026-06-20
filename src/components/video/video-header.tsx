@@ -30,7 +30,12 @@ export function VideoHeader({ markers, videoId }: VideoHeaderProps) {
             {marker.title}
           </h1>
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
+          {/* data-nosnippet keeps this metadata row out of Google's
+              auto-generated snippet so the video summary is surfaced instead. */}
+          <div
+            data-nosnippet
+            className="flex flex-wrap items-center gap-4 text-sm text-slate-400"
+          >
             <Link
               href={`/creator/${encodeURIComponent(marker.channelId ?? marker.creatorName)}`}
               className="flex items-center gap-2 transition-colors hover:text-slate-200"

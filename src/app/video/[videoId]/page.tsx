@@ -16,6 +16,7 @@ import { NearbyVideosSection } from "@/components/video/nearby-videos-section"
 import { LocationVideosSection } from "@/components/video/location-videos-section"
 import { VideoTimeline } from "@/components/video/video-timeline"
 import { SiteFooter } from "@/components/site-footer"
+import { JsonLd } from "@/components/json-ld"
 import { Button } from "@/components/ui/button"
 import type { VideoGroup } from "@/types/markers"
 
@@ -171,8 +172,37 @@ export default async function VideoDetailPage({
   // client-side onError fallback.
   const youtubeThumbnailUrl = await getBestYouTubeThumbnailUrl(canonicalVideoUrl)
 
+  // VideoObject structured data so Google can render a video rich result and
+  // use the summary as the description.
+  const lead = markers[0]
+  const plainSummary = lead?.summary?.replace(/<[^>]*>/g, "").trim()
+  const uploadDate = lead?.videoPublishedAt
+    ? new Date(lead.videoPublishedAt).toISOString()
+    : undefined
+  const videoJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: lead?.title,
+    description:
+      plainSummary || `Filming locations from ${lead?.title} by ${lead?.creatorName}`,
+    ...(youtubeThumbnailUrl ? { thumbnailUrl: [youtubeThumbnailUrl] } : {}),
+    ...(uploadDate ? { uploadDate } : {}),
+    contentUrl: canonicalVideoUrl,
+    embedUrl: `https://www.youtube.com/embed/${videoId}`,
+    ...(lead?.creatorName
+      ? {
+          author: {
+            "@type": "Person",
+            name: lead.creatorName,
+            ...(lead.channelUrl ? { url: lead.channelUrl } : {}),
+          },
+        }
+      : {}),
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
+      <JsonLd data={videoJsonLd} />
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-900/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
