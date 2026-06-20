@@ -6,6 +6,7 @@ import "yet-another-react-lightbox/styles.css"
 
 import type { Marker } from "@/types/markers"
 import { getYouTubeThumbnailUrl } from "@/lib/youtube"
+import { getMarkerLocationLabel } from "@/lib/markers"
 
 interface PhotoGalleryProps {
   markers: Marker[]
@@ -38,12 +39,12 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
   }
 
   // Add screenshots from markers
-  markers.forEach((marker, index) => {
+  markers.forEach((marker) => {
     if (marker.screenshotUrl && !seenUrls.has(marker.screenshotUrl)) {
       seenUrls.add(marker.screenshotUrl)
       images.push({
         src: marker.screenshotUrl,
-        alt: `${marker.title} - Location ${index + 1}`,
+        alt: getMarkerLocationLabel(marker),
         description: marker.description,
       })
     }

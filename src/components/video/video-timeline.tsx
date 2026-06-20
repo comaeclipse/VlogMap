@@ -6,6 +6,7 @@ import { MapPin, Clock, Landmark } from "lucide-react"
 import Lightbox from "yet-another-react-lightbox"
 import "yet-another-react-lightbox/styles.css"
 import type { Marker } from "@/types/markers"
+import { getMarkerLocationLabel } from "@/lib/markers"
 
 interface VideoTimelineProps {
   markers: Marker[]
@@ -142,7 +143,7 @@ export function VideoTimeline({ markers, videoUrl }: VideoTimelineProps) {
                     >
                       <img
                         src={marker.screenshotUrl}
-                        alt={marker.locationName || "Location"}
+                        alt={getMarkerLocationLabel(marker)}
                         className="h-20 w-32 rounded-md object-cover border border-white/10 transition-all group-hover:ring-2 group-hover:ring-blue-500/50"
                       />
                     </button>

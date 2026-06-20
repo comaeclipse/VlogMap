@@ -1,4 +1,19 @@
 import { z } from "zod"
+import type { Marker } from "@/types/markers"
+
+/**
+ * Human-readable place label for a marker, used as image alt text.
+ * Landmark stops use the landmark name; city-level stops use the city.
+ * The country is appended when known, e.g. "Eiffel Tower, France" or
+ * "Paris, France". Falls back to "Location" when nothing is known.
+ */
+export function getMarkerLocationLabel(marker: Marker): string {
+  const place =
+    marker.locationType === "landmark" && marker.locationName
+      ? marker.locationName
+      : marker.city
+  return [place, marker.country].filter(Boolean).join(", ") || "Location"
+}
 
 export const markerSchema = z.object({
   title: z.string().min(2).max(120),
