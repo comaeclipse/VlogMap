@@ -166,6 +166,11 @@ export default async function VideoDetailPage({
   // Find nearby videos
   const nearbyVideos = await findNearbyVideos(markers, canonicalVideoUrl)
 
+  // Resolve a YouTube thumbnail tier that actually exists (maxresdefault 404s
+  // for sub-720p uploads), so the gallery shows it without relying on a
+  // client-side onError fallback.
+  const youtubeThumbnailUrl = await getBestYouTubeThumbnailUrl(canonicalVideoUrl)
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       {/* Header */}
@@ -210,7 +215,10 @@ export default async function VideoDetailPage({
               {/* Left column: Map + Photo Gallery */}
               <div className="space-y-6">
                 <VideoMapSection markers={markers} />
-                <PhotoGallery markers={markers} />
+                <PhotoGallery
+                  markers={markers}
+                  youtubeThumbnailUrl={youtubeThumbnailUrl}
+                />
               </div>
 
               {/* Right column: Video Summary */}

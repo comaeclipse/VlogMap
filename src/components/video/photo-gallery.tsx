@@ -10,9 +10,13 @@ import { getMarkerLocationLabel } from "@/lib/markers"
 
 interface PhotoGalleryProps {
   markers: Marker[]
+  // Server-verified YouTube thumbnail URL (probed to a tier that actually
+  // exists). Preferred over the maxresdefault guess so we don't rely on the
+  // client onError fallback firing.
+  youtubeThumbnailUrl?: string | null
 }
 
-export function PhotoGallery({ markers }: PhotoGalleryProps) {
+export function PhotoGallery({ markers, youtubeThumbnailUrl }: PhotoGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
@@ -25,9 +29,11 @@ export function PhotoGallery({ markers }: PhotoGalleryProps) {
   
   const seenUrls = new Set<string>()
 
-  // Always show the YouTube thumbnail first, even when screenshots exist
+  // Always show the YouTube thumbnail first, even when screenshots exist.
+  // Prefer the server-verified URL; fall back to the maxresdefault guess.
   if (markers.length > 0 && markers[0].videoUrl) {
-    const thumbnailUrl = getYouTubeThumbnailUrl(markers[0].videoUrl)
+    const thumbnailUrl =
+      youtubeThumbnailUrl ?? getYouTubeThumbnailUrl(markers[0].videoUrl)
     if (thumbnailUrl && !seenUrls.has(thumbnailUrl)) {
       seenUrls.add(thumbnailUrl)
       images.push({
