@@ -146,11 +146,12 @@ export default async function VideoDetailPage({
 
       // Fetch videos at location directly from DB
       const { rows: locationMarkerRows } = await query<MarkerRow>(
-        `SELECT m.id, m.title, m.creator, m.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city,
+        `SELECT m.id, m.title, m.creator_id, c.name as creator_name, c.channel_url, m.video_url, m.description, m.latitude, m.longitude, m.city,
          COALESCE(m.district, l.district) as district,
          COALESCE(m.country, l.country) as country,
          m.video_published_at, m.screenshot_url, m.summary, m.location_id, m.type, m.parent_city_id, m.timestamp, m.created_at
          FROM explorer_markers m
+         JOIN creators c ON m.creator_id = c.id
          LEFT JOIN locations l ON m.location_id = l.id
          WHERE m.location_id = $1 AND m.video_url IS NOT NULL
          ORDER BY m.video_published_at DESC NULLS LAST, m.created_at DESC`,
