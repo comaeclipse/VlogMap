@@ -563,7 +563,9 @@ export default function TaxonomyManagerPage() {
     }
   }
 
-  // Bulk update locations
+  // Bulk update locations. Fires all PATCHes concurrently and reports per-item
+  // failures (the server enforces the tree-integrity guards). Failed rows stay
+  // selected so they can be retried.
   const bulkUpdate = async (updates: {
     type?: string | null
     parentLocationId?: string | null
@@ -571,27 +573,50 @@ export default function TaxonomyManagerPage() {
     if (selectedLocationIds.size === 0) return
 
     setBulkActionLoading(true)
-    let successCount = 0
     try {
-      // Update each location individually using the PATCH endpoint
-      for (const locationId of Array.from(selectedLocationIds)) {
-        const res = await fetch(`/api/locations/${locationId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            type: updates.type,
-            parentLocationId: updates.parentLocationId,
+      const ids = Array.from(selectedLocationIds)
+      const results = await Promise.allSettled(
+        ids.map((locationId) =>
+          fetch(`/api/locations/${locationId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              type: updates.type,
+              parentLocationId: updates.parentLocationId,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const payload = await res.json().catch(() => ({}))
+              throw new Error(payload?.error || `HTTP ${res.status}`)
+            }
           }),
-        })
+        ),
+      )
 
-        if (res.ok) {
-          successCount++
+      // allSettled preserves order, so reject indexes map back to ids.
+      const failedIds: string[] = []
+      const reasons = new Set<string>()
+      results.forEach((result, i) => {
+        if (result.status === "rejected") {
+          failedIds.push(ids[i])
+          reasons.add(
+            result.reason instanceof Error ? result.reason.message : "Failed",
+          )
         }
+      })
+
+      const succeeded = ids.length - failedIds.length
+      if (failedIds.length === 0) {
+        toast.success(`Updated ${succeeded} location(s)`)
+      } else {
+        toast.error(
+          `Updated ${succeeded} of ${ids.length}. ${failedIds.length} failed: ${[...reasons].join("; ")}`,
+        )
       }
 
-      toast.success(`Updated ${successCount} location(s)`)
-      setSelectedLocationIds(new Set())
+      // Clear on full success; keep only failed rows selected for retry.
+      setSelectedLocationIds(new Set(failedIds))
       await mutate()
     } catch (error) {
       toast.error("Failed to update locations")
@@ -1186,7 +1211,7 @@ export default function TaxonomyManagerPage() {
 
                       {/* Set type */}
                       <Select
-                        onValueChange={(value) => bulkUpdate({ type: value === "none" ? null : value })}
+                        onValueChange={(value) => bulkUpdate({ type: value })}
                         disabled={bulkActionLoading}
                       >
                         <SelectTrigger className="h-8 w-36 text-xs">
@@ -1195,7 +1220,6 @@ export default function TaxonomyManagerPage() {
                         <SelectContent>
                           <SelectItem value="city">City</SelectItem>
                           <SelectItem value="landmark">Landmark</SelectItem>
-                          <SelectItem value="none">Unspecified</SelectItem>
                         </SelectContent>
                       </Select>
 
