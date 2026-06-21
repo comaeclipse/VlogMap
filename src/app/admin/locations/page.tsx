@@ -231,6 +231,13 @@ export default function TaxonomyManagerPage() {
     [cityLocations, selectedCityId]
   )
 
+  // The location currently open in the Edit dialog (used to hide the Parent
+  // City field for cities and to exclude the location from its own parent list).
+  const editingLocation = useMemo(
+    () => locations.find((l) => l.id === editingLocationId),
+    [locations, editingLocationId]
+  )
+
   // Check-ins (markers) attached to a given location id — the "actual context"
   // shown in the merge review so duplicates can be judged by their real visits.
   const markersForLocation = useMemo(() => {
@@ -389,10 +396,13 @@ export default function TaxonomyManagerPage() {
 
     const payload = {
       name: editLocationData.name,
+      // Cities have no parent — never send one for them (the server rejects it).
       parentLocationId:
-        editLocationData.parentCityId === "none"
+        editingLocation?.type === "city"
           ? null
-          : editLocationData.parentCityId,
+          : editLocationData.parentCityId === "none"
+            ? null
+            : editLocationData.parentCityId,
       country: editLocationData.country || null,
       district: editLocationData.district || null,
       description: editLocationData.description || null,
@@ -1420,25 +1430,31 @@ export default function TaxonomyManagerPage() {
                 onChange={(e) => setEditLocationData(prev => ({ ...prev, district: e.target.value }))}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-parent">Parent City</Label>
-              <Select
-                value={editLocationData.parentCityId}
-                onValueChange={(value) => setEditLocationData(prev => ({ ...prev, parentCityId: value }))}
-              >
-                <SelectTrigger id="edit-parent">
-                  <SelectValue placeholder="No parent city" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No parent city (orphan)</SelectItem>
-                  {cityLocations.map((city) => (
-                    <SelectItem key={city.id} value={city.id}>
-                      {city.name || city.city || "Unknown"} ({city.country || ""})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Cities have no parent, so only show the Parent City field for
+                non-city locations, and never offer the location as its own parent. */}
+            {editingLocation?.type !== "city" && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-parent">Parent City</Label>
+                <Select
+                  value={editLocationData.parentCityId}
+                  onValueChange={(value) => setEditLocationData(prev => ({ ...prev, parentCityId: value }))}
+                >
+                  <SelectTrigger id="edit-parent">
+                    <SelectValue placeholder="No parent city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No parent city (orphan)</SelectItem>
+                    {cityLocations
+                      .filter((city) => city.id !== editingLocationId)
+                      .map((city) => (
+                        <SelectItem key={city.id} value={city.id}>
+                          {city.name || city.city || "Unknown"} ({city.country || ""})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsEditLocationOpen(false)}>Cancel</Button>
