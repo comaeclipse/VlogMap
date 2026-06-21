@@ -88,4 +88,7 @@ but not the location node's.
 
 - Issue #2: ~12 public city nodes display raw geocoder output ("Yan Tai Shi",
   "Αλεξανδρούπολη", "Đống Đa", "Paju-si", "Kabupaten Gresik"). Same root source.
-- Landmark auto-name "Location N" comes from `src/app/edit/[videoId]/page.tsx:691`.
+- Landmark placeholder names "Location N" come from `createLocation`'s default
+  (`src/lib/location-matching.ts:133`) when a marker is created city-less, plus
+  legacy names from the baseline. (`edit/[videoId]/page.tsx:691` is display-only,
+  not the stored value.) Tracked separately in issue #5.
